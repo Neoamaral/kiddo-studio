@@ -1,0 +1,62 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --kiddo-lime:      #C8E820;
+  --kiddo-black:     #1A1A1A;
+  --kiddo-cream:     #F2EFE6;
+  --kiddo-off-white: #F8F5EE;
+  --kiddo-dark:      #111111;
+  --font-body:       -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--kiddo-cream);
+  color: var(--kiddo-black);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-family: var(--font-body);
+}
+
+/* Text selection */
+::selection {
+  background: var(--kiddo-lime);
+  color: var(--kiddo-black);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar            { width: 5px; }
+::-webkit-scrollbar-track      { background: var(--kiddo-cream); }
+::-webkit-scrollbar-thumb      { background: var(--kiddo-black); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: #333; }
+
+/* Container utility */
+.kiddo-container {
+  max-width: 1440px;
+  margin-inline: auto;
+  padding-inline: clamp(1.25rem, 4vw, 5rem);
+}
+
+/* Section utilities */
+.section-cream { background: var(--kiddo-cream); color: var(--kiddo-black); }
+.section-dark  { background: var(--kiddo-dark);  color: #fff; }
+
+/* Dividers */
+.kiddo-divider       { border-top: 1px solid rgba(0, 0, 0, 0.10); }
+.kiddo-divider-white { border-top: 1px solid rgba(255, 255, 255, 0.10); }
+
+@layer utilities {
+  .text-balance  { text-wrap: balance; }
+  .writing-vert  { writing-mode: vertical-rl; }
+}
