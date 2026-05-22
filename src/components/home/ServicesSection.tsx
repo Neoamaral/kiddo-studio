@@ -1,13 +1,10 @@
 "use client";
-import Link from "next/link";
 import {
   SectionLabelNumber,
   NeonHighlightStroke,
   CameraSketchIcon,
   StoolSketchIcon,
-  StudioLightSketchIcon,
   SmallTextArrowLink,
-  kiddoColors,
 } from "@/components/kiddo-assets";
 
 const cards = [
@@ -22,26 +19,10 @@ const cards = [
   {
     num: 2,
     title: "STUDIO RENTAL",
-    body: "Rent the space by the hour or full day. Everything you need, nothing you don't.",
+    body: "Rent the space by the hour or full day. Need extra equipment? Just ask — we've got you covered.",
     link: "/studio",
     linkLabel: "BOOK NOW",
     icon: <StoolSketchIcon width={64} height={96} showAccent={false} />,
-  },
-  {
-    num: 3,
-    title: "EQUIPMENT",
-    body: "Lights, cameras, stands, backdrops. Rent individual items or full packages.",
-    link: "/equipment",
-    linkLabel: "SEE GEAR",
-    icon: <StudioLightSketchIcon width={80} height={112} showAccent={false} />,
-  },
-  {
-    num: 4,
-    title: "ART DEPARTMENT",
-    body: "Props, set design, and styling available. Build the world your story needs.",
-    link: "/projects",
-    linkLabel: "DISCOVER",
-    img: "/images/art-collage.jpg",
   },
 ];
 
@@ -49,7 +30,7 @@ export default function ServicesSection() {
   return (
     <section className="section-cream">
       <div
-        className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4"
+        className="grid grid-cols-1 md:grid-cols-2"
         style={{ borderTop: "1px solid rgba(0,0,0,0.08)" }}
       >
         {cards.map((card, i) => (
