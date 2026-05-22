@@ -656,7 +656,7 @@ function SuccessCard({ bookingRef }: { bookingRef: string }) {
         gap: 16,
       }}
     >
-      <SmileyFaceIcon variant="drip" width={80} fill={kiddoColors.lime} />
+      <SmileyFaceIcon variant="drip" width={80} fill={kiddoColors.black} />
       <div
         style={{
           fontFamily: "var(--font-display)",

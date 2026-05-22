@@ -254,7 +254,7 @@ export default function ProjectsPageClient() {
         <div className="kiddo-container" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 28 }}>
           <h2 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(3rem,7vw,6.875rem)", lineHeight: 0.9 }}>
             GOT A PROJECT?<br />
-            <HandwrittenWord text="let&apos;s chat." color={"#C8E820"} fontSize="inherit" rotation={-3} />
+            <HandwrittenWord text="let's chat." color={"#C8E820"} fontSize="inherit" rotation={-3} />
           </h2>
           <a
             href="/contact"
