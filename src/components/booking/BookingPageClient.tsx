@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import {
   HandwrittenWord,
   SmileyFaceIcon,
@@ -718,6 +719,7 @@ function SuccessCard({ bookingRef }: { bookingRef: string }) {
 // ─── Main Page Component ──────────────────────────────────────────────────────
 
 export default function BookingPageClient() {
+  const isMobile = useIsMobile();
   const [activeStep, setActiveStep] = useState(0);
   const [selectedDate, setSelectedDate] = useState<number | null>(null);
   const [slot, setSlot] = useState("");
@@ -923,7 +925,7 @@ export default function BookingPageClient() {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "1.6fr 1fr",
+              gridTemplateColumns: isMobile ? "1fr" : "1.6fr 1fr",
               gap: 32,
               alignItems: "start",
             }}
@@ -952,7 +954,7 @@ export default function BookingPageClient() {
                 <div
                   style={{
                     display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
+                    gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1fr 1fr 1fr",
                     gap: 10,
                   }}
                 >
@@ -1027,7 +1029,7 @@ export default function BookingPageClient() {
                 <div
                   style={{
                     display: "grid",
-                    gridTemplateColumns: "1fr 1fr 1fr",
+                    gridTemplateColumns: isMobile ? "1fr" : "repeat(3,1fr)",
                     gap: 10,
                   }}
                 >
@@ -1157,7 +1159,7 @@ export default function BookingPageClient() {
                 <div
                   style={{
                     display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
+                    gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
                     gap: 10,
                   }}
                 >
@@ -1471,7 +1473,7 @@ export default function BookingPageClient() {
             </div>
 
             {/* RIGHT: Sticky Sidebar */}
-            <div style={{ position: "sticky", top: 88 }}>
+            <div style={{ position: "sticky", top: isMobile ? 0 : 88 }}>
               {bookingRef ? (
                 <SuccessCard bookingRef={bookingRef} />
               ) : (

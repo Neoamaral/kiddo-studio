@@ -5,6 +5,7 @@ import {
   SmallTextArrowLink,
   ScribbleArrowIcon,
 } from "@/components/kiddo-assets";
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 type ProjectSize = "sm" | "md" | "lg" | "xl";
 
@@ -52,6 +53,7 @@ const SIZE_MAP: Record<ProjectSize, { gridColumn: string; aspectRatio: string }>
 
 export default function ProjectsPageClient() {
   const [filter, setFilter] = useState("ALL");
+  const isMobile = useIsMobile();
 
   const shown = filter === "ALL" ? PROJECTS_DATA : PROJECTS_DATA.filter((p) => p.cat === filter);
   const feature = shown.find((p) => p.featured) || shown[0];
@@ -75,7 +77,7 @@ export default function ProjectsPageClient() {
         </div>
 
         {/* Main title */}
-        <div className="kiddo-container" style={{ padding: "100px 0 0", position: "relative" }}>
+        <div className="kiddo-container" style={{ padding: isMobile ? "60px 0 0" : "100px 0 0", position: "relative" }}>
           <p style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.25em", textTransform: "uppercase", color: "rgba(255,255,255,0.6)", marginBottom: 16 }}>WORK · WHAT WE&apos;VE BEEN UP TO</p>
           <h1 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(5rem,14vw,13.75rem)", lineHeight: 0.82, letterSpacing: "-0.03em", color: "#fff" }}>
             STUFF<br />
@@ -84,7 +86,7 @@ export default function ProjectsPageClient() {
         </div>
 
         {/* Bottom featured stripe */}
-        <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: "20px 64px", display: "grid", gridTemplateColumns: "auto 1fr auto", gap: 24, alignItems: "center", borderTop: "1px solid #C8E820", background: "rgba(17,17,17,0.7)" }}>
+        <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: isMobile ? "16px 20px" : "20px 64px", display: "grid", gridTemplateColumns: isMobile ? "1fr auto" : "auto 1fr auto", gap: 24, alignItems: "center", borderTop: "1px solid #C8E820", background: "rgba(17,17,17,0.7)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.25em", textTransform: "uppercase", background: "#C8E820", color: "#1A1A1A", padding: "4px 8px" }}>★ FEATURE</span>
             <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.25em", textTransform: "uppercase", color: "rgba(255,255,255,0.6)" }}>{feature?.cat} · {feature?.year}</span>
@@ -201,12 +203,13 @@ export default function ProjectsPageClient() {
           <p style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.25em", textTransform: "uppercase", color: "rgba(0,0,0,0.45)" }}>ALL PROJECTS · IN NO PARTICULAR ORDER</p>
         </div>
         <div className="kiddo-container">
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(12, 1fr)", gap: 16, gridAutoFlow: "dense" }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(4, 1fr)" : "repeat(12, 1fr)", gap: 16, gridAutoFlow: "dense" }}>
             {rest.map((p, i) => {
-              const s = SIZE_MAP[p.size] || SIZE_MAP.md;
+              const span = p.size === "xl" ? 6 : p.size === "lg" ? 5 : p.size === "md" ? 4 : 3;
+              const aspectRatio = (SIZE_MAP[p.size] || SIZE_MAP.md).aspectRatio;
               return (
-                <div key={p.id} style={{ gridColumn: s.gridColumn, display: "flex", flexDirection: "column", gap: 10 }}>
-                  <div style={{ position: "relative", aspectRatio: s.aspectRatio, overflow: "hidden", background: "#1A1A1A" }}>
+                <div key={p.id} style={{ gridColumn: isMobile ? `span ${Math.min(span, 2)}` : `span ${span}`, display: "flex", flexDirection: "column", gap: 10 }}>
+                  <div style={{ position: "relative", aspectRatio: aspectRatio, overflow: "hidden", background: "#1A1A1A" }}>
                     <img src={p.thumb} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                     <div style={{ position: "absolute", top: 10, left: 10 }}>
                       <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.25em", textTransform: "uppercase", background: "rgba(255,255,255,0.9)", color: "#1A1A1A", padding: "3px 6px" }}>{String(i + 2).padStart(2, "0")}</span>
@@ -243,7 +246,7 @@ export default function ProjectsPageClient() {
             }}
           >
             {row.map((c) => (
-              <span key={c} style={{ fontFamily: "var(--font-display)", fontSize: 48, color: "#1A1A1A", lineHeight: 1, whiteSpace: "nowrap", letterSpacing: "-0.01em", flexShrink: 0 }}>{c}</span>
+              <span key={c} style={{ fontFamily: "var(--font-display)", fontSize: isMobile ? 28 : 48, color: "#1A1A1A", lineHeight: 1, whiteSpace: "nowrap", letterSpacing: "-0.01em", flexShrink: 0 }}>{c}</span>
             ))}
           </div>
         ))}

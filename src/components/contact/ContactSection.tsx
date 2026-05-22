@@ -10,8 +10,10 @@ import {
   CircularBadgeSeal,
   SmallTextArrowLink,
 } from "@/components/kiddo-assets";
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 export default function ContactSection() {
+  const isMobile = useIsMobile();
   const [form, setForm] = useState({ name: "", email: "", message: "", type: "STUDIO" });
   const [sent, setSent] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -45,22 +47,28 @@ export default function ContactSection() {
         }}
       >
         {/* Decorations */}
-        <div style={{ position: "absolute", top: 60, left: 80, opacity: 0.4 }}>
-          <ScribbleArrowIcon variant="diagonal" width={70} height={70} />
-        </div>
-        <div style={{ position: "absolute", top: 100, right: 120 }}>
-          <HandDrawnStarIcon width={50} color={"#C8E820"} />
-        </div>
-        <div
-          style={{
-            position: "absolute",
-            bottom: 80,
-            left: 200,
-            transform: "rotate(-12deg)",
-          }}
-        >
-          <CircularBadgeSeal size={90} color={"#1A1A1A"} bgColor={"#C8E820"} spinning />
-        </div>
+        {!isMobile && (
+          <div style={{ position: "absolute", top: 60, left: 80, opacity: 0.4 }}>
+            <ScribbleArrowIcon variant="diagonal" width={70} height={70} />
+          </div>
+        )}
+        {!isMobile && (
+          <div style={{ position: "absolute", top: 100, right: 120 }}>
+            <HandDrawnStarIcon width={50} color={"#C8E820"} />
+          </div>
+        )}
+        {!isMobile && (
+          <div
+            style={{
+              position: "absolute",
+              bottom: 80,
+              left: 200,
+              transform: "rotate(-12deg)",
+            }}
+          >
+            <CircularBadgeSeal size={90} color={"#1A1A1A"} bgColor={"#C8E820"} spinning />
+          </div>
+        )}
 
         <div className="kiddo-container" style={{ position: "relative" }}>
           <p
@@ -85,7 +93,7 @@ export default function ContactSection() {
             }}
           >
             <h1>
-              <HandwrittenWord text="hi." color={"#C8E820"} fontSize={460} rotation={-3} />
+              <HandwrittenWord text="hi." color={"#C8E820"} fontSize={"clamp(72px, 22vw, 420px)"} rotation={-3} />
             </h1>
             {/* Hand-drawn underline below */}
             <div
@@ -96,7 +104,7 @@ export default function ContactSection() {
                 transform: "rotate(-2deg)",
               }}
             >
-              <BrushUnderline variant="long" color={"#1A1A1A"} width={380} />
+              <BrushUnderline variant="long" color={"#1A1A1A"} width={isMobile ? 220 : 380} />
             </div>
           </div>
 
@@ -127,8 +135,8 @@ export default function ContactSection() {
           className="kiddo-container"
           style={{
             display: "grid",
-            gridTemplateColumns: "1.4fr 1fr",
-            gap: 80,
+            gridTemplateColumns: isMobile ? "1fr" : "1.4fr 1fr",
+            gap: isMobile ? 40 : 80,
           }}
         >
           {/* Left: big channel info */}
@@ -504,7 +512,7 @@ export default function ContactSection() {
 
       {/* ── Part 3: Map section ── */}
       <section style={{ background: "#111111", position: "relative", overflow: "hidden" }}>
-        <div style={{ padding: "56px 64px 0" }}>
+        <div style={{ padding: isMobile ? "40px 20px 0" : "56px 64px 0" }}>
           <p
             style={{
               fontFamily: "var(--font-mono)",
@@ -682,7 +690,7 @@ export default function ContactSection() {
             style={{
               position: "absolute",
               bottom: 30,
-              left: 64,
+              left: isMobile ? 12 : 64,
               background: "#fff",
               padding: 16,
               maxWidth: 260,

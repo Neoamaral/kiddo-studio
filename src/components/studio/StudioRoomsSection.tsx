@@ -7,6 +7,7 @@ import {
   SmallTextArrowLink,
   kiddoColors,
 } from "@/components/kiddo-assets";
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 /* ─── Data ──────────────────────────────────────────────────────────────── */
 
@@ -306,13 +307,14 @@ function RoomBody({ room, textColor }: { room: Room; textColor: string }) {
 
 function RoomImageRightTall({ room }: { room: Room }) {
   const textColor = kiddoColors.black;
+  const vPad = "clamp(2.5rem, 6vw, 5rem)";
   return (
     <section
       style={{ background: room.bg, borderTop: "1px solid rgba(0,0,0,0.08)" }}
     >
       <div
         className="kiddo-container room-grid-right"
-        style={{ paddingTop: 80, paddingBottom: 80 }}
+        style={{ paddingTop: vPad, paddingBottom: vPad }}
       >
         {/* Left content */}
         <div
@@ -407,8 +409,8 @@ function RoomImageFullbleedOverlay({ room }: { room: Room }) {
           display: "flex",
           alignItems: "center",
           minHeight: 640,
-          paddingTop: 80,
-          paddingBottom: 80,
+          paddingTop: "clamp(2.5rem, 6vw, 5rem)",
+          paddingBottom: "clamp(2.5rem, 6vw, 5rem)",
         }}
       >
         <div style={{ maxWidth: 560 }}>
@@ -466,7 +468,7 @@ function RoomImageLeft({ room }: { room: Room }) {
 
       <div
         className="kiddo-container room-grid-left"
-        style={{ paddingTop: 80, paddingBottom: 80 }}
+        style={{ paddingTop: "clamp(2.5rem, 6vw, 5rem)", paddingBottom: "clamp(2.5rem, 6vw, 5rem)" }}
       >
         {/* Left: collage photo */}
         <div style={{ display: "flex", justifyContent: "center" }}>
@@ -498,7 +500,7 @@ function RoomImageLeft({ room }: { room: Room }) {
   );
 }
 
-function RoomImageGrid({ room }: { room: Room }) {
+function RoomImageGrid({ room, isMobile }: { room: Room; isMobile: boolean }) {
   const textColor = kiddoColors.black;
   return (
     <section
@@ -509,7 +511,7 @@ function RoomImageGrid({ room }: { room: Room }) {
     >
       <div
         className="kiddo-container room-grid-split"
-        style={{ paddingTop: 80, paddingBottom: 80 }}
+        style={{ paddingTop: "clamp(2.5rem, 6vw, 5rem)", paddingBottom: "clamp(2.5rem, 6vw, 5rem)" }}
       >
         {/* Left content */}
         <div
@@ -528,10 +530,10 @@ function RoomImageGrid({ room }: { room: Room }) {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "2fr 1fr",
-            gridTemplateRows: "1fr 1fr",
+            gridTemplateColumns: isMobile ? "1fr" : "2fr 1fr",
+            gridTemplateRows: isMobile ? "auto" : "1fr 1fr",
             gap: 6,
-            height: 420,
+            height: isMobile ? "auto" : 420,
           }}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -577,6 +579,7 @@ function RoomImageGrid({ room }: { room: Room }) {
 /* ─── Export ─────────────────────────────────────────────────────────────── */
 
 export default function StudioRoomsSection() {
+  const isMobile = useIsMobile();
   return (
     <>
       {ROOMS.map((room) => {
@@ -587,7 +590,7 @@ export default function StudioRoomsSection() {
         if (room.layout === "image-left")
           return <RoomImageLeft key={room.id} room={room} />;
         if (room.layout === "image-grid")
-          return <RoomImageGrid key={room.id} room={room} />;
+          return <RoomImageGrid key={room.id} room={room} isMobile={isMobile} />;
         return null;
       })}
 

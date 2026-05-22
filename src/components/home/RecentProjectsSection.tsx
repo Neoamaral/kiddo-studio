@@ -1,6 +1,7 @@
 "use client";
 import { useRef, useState } from "react";
 import { BrushUnderline, SmallTextArrowLink, kiddoColors } from "@/components/kiddo-assets";
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 const PHOTOS = [
   { src: "/images/neon-ice/ni-01-uv-white-front.jpg",  alt: "Neon ICE UV shoot — white set front" },
@@ -18,7 +19,7 @@ const VIDEOS = [
   { src: "/videos/neon-ice/hoodie-azul.mov",  label: "BLUE ICE HOODIE" },
 ];
 
-function VideoThumb({ src, label }: { src: string; label: string }) {
+function VideoThumb({ src, label, isMobile }: { src: string; label: string; isMobile: boolean }) {
   const ref = useRef<HTMLVideoElement>(null);
   const [playing, setPlaying] = useState(false);
 
@@ -31,7 +32,7 @@ function VideoThumb({ src, label }: { src: string; label: string }) {
   return (
     <div
       className="relative shrink-0 overflow-hidden cursor-pointer group"
-      style={{ width: 220, height: 300 }}
+      style={{ width: isMobile ? 150 : 220, height: isMobile ? 220 : 300 }}
       onClick={toggle}
     >
       <video
@@ -74,6 +75,7 @@ function VideoThumb({ src, label }: { src: string; label: string }) {
 }
 
 export default function RecentProjectsSection() {
+  const isMobile = useIsMobile();
   return (
     <section className="section-cream py-16 lg:py-20 overflow-hidden">
       <div className="kiddo-container">
@@ -115,7 +117,7 @@ export default function RecentProjectsSection() {
             <div
               key={p.src}
               className="relative shrink-0 overflow-hidden group"
-              style={{ width: 200, height: 300 }}
+              style={{ width: isMobile ? 150 : 200, height: isMobile ? 220 : 300 }}
             >
               <img
                 src={p.src}
@@ -131,14 +133,14 @@ export default function RecentProjectsSection() {
           ))}
 
           {/* Video 1 */}
-          <VideoThumb {...VIDEOS[0]} />
+          <VideoThumb {...VIDEOS[0]} isMobile={isMobile} />
 
           {/* Remaining 4 photos */}
           {PHOTOS.slice(4).map((p) => (
             <div
               key={p.src}
               className="relative shrink-0 overflow-hidden group"
-              style={{ width: 200, height: 300 }}
+              style={{ width: isMobile ? 150 : 200, height: isMobile ? 220 : 300 }}
             >
               <img
                 src={p.src}
@@ -154,7 +156,7 @@ export default function RecentProjectsSection() {
           ))}
 
           {/* Video 2 */}
-          <VideoThumb {...VIDEOS[1]} />
+          <VideoThumb {...VIDEOS[1]} isMobile={isMobile} />
         </div>
 
         {/* Count tag */}

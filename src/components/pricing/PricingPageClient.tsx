@@ -10,6 +10,7 @@ import {
   CircularBadgeSeal,
   kiddoColors,
 } from "@/components/kiddo-assets";
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 interface PricingTicket {
   id: string;
@@ -143,6 +144,7 @@ const monoXs: React.CSSProperties = {
 };
 
 export default function PricingPageClient() {
+  const isMobile = useIsMobile();
   const [billing, setBilling] = useState<"WEEKDAY" | "WEEKEND">("WEEKDAY");
   const mult = billing === "WEEKEND" ? 1.2 : 1;
   const [openFaq, setOpenFaq] = useState<number | null>(0);
@@ -155,7 +157,7 @@ export default function PricingPageClient() {
           background: kiddoColors.lime,
           position: "relative",
           overflow: "hidden",
-          padding: "72px 0 100px",
+          padding: isMobile ? "40px 0 64px" : "72px 0 100px",
         }}
       >
         {/* Watermark number */}
@@ -340,10 +342,10 @@ export default function PricingPageClient() {
               <div
                 className="kiddo-container"
                 style={{
-                  padding: "56px 0",
+                  padding: isMobile ? "20px 16px" : "56px 0",
                   display: "grid",
-                  gridTemplateColumns: "auto 1fr auto",
-                  gap: 48,
+                  gridTemplateColumns: isMobile ? "1fr" : "auto 1fr auto",
+                  gap: isMobile ? 16 : 48,
                   alignItems: "center",
                   position: "relative",
                 }}
@@ -436,7 +438,7 @@ export default function PricingPageClient() {
                     display: "flex",
                     flexDirection: "column",
                     gap: 14,
-                    minWidth: 280,
+                    minWidth: isMobile ? 0 : 280,
                   }}
                 >
                   <ul
@@ -549,7 +551,7 @@ export default function PricingPageClient() {
       <section
         style={{
           background: kiddoColors.cream,
-          padding: "100px 0",
+          padding: isMobile ? "56px 0" : "100px 0",
           position: "relative",
         }}
       >
@@ -692,13 +694,13 @@ export default function PricingPageClient() {
       </section>
 
       {/* SECTION 4 — FAQ */}
-      <section style={{ background: "#111111", padding: "100px 0" }}>
+      <section style={{ background: "#111111", padding: isMobile ? "56px 0" : "100px 0" }}>
         <div
           className="kiddo-container"
           style={{
             display: "grid",
-            gridTemplateColumns: "1fr 2fr",
-            gap: 80,
+            gridTemplateColumns: isMobile ? "1fr" : "1fr 2fr",
+            gap: isMobile ? 40 : 80,
           }}
         >
           <div>
@@ -826,7 +828,7 @@ export default function PricingPageClient() {
       <section
         style={{
           background: kiddoColors.lime,
-          padding: "80px 0",
+          padding: isMobile ? "48px 0" : "80px 0",
           position: "relative",
           overflow: "hidden",
         }}

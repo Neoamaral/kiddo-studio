@@ -8,6 +8,7 @@ import {
   ScribbleArrowIcon,
   kiddoColors,
 } from "@/components/kiddo-assets";
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 /* ─── Data ──────────────────────────────────────────────────────────────── */
 
@@ -139,8 +140,88 @@ function StockBars({ count, max = 8 }: { count: number; max?: number }) {
 /* ─── Ledger Row ─────────────────────────────────────────────────────────── */
 
 function LedgerRow({ item }: { item: EquipmentItem }) {
+  const isMobile = useIsMobile();
   const [hovered, setHovered] = useState(false);
   const [btnHovered, setBtnHovered] = useState(false);
+
+  const hotBadge = item.hot ? (
+    <span
+      style={{
+        marginLeft: 4,
+        display: "inline-block",
+        background: kiddoColors.lime,
+        color: kiddoColors.black,
+        fontSize: 7,
+        fontFamily: "var(--font-mono)",
+        letterSpacing: "0.1em",
+        textTransform: "uppercase",
+        padding: "1px 4px",
+        borderRadius: 2,
+        verticalAlign: "middle",
+      }}
+    >
+      HOT
+    </span>
+  ) : null;
+
+  const priceEl = item.free ? (
+    <span
+      style={{
+        ...monoStyle,
+        color: kiddoColors.black,
+        background: kiddoColors.lime,
+        padding: "3px 7px",
+        borderRadius: 3,
+        display: "inline-block",
+      }}
+    >
+      FREE
+    </span>
+  ) : (
+    <span style={{ ...monoStyle, color: kiddoColors.black, fontWeight: 700 }}>
+      €{item.price}
+      <span style={{ ...monoXsStyle, color: "rgba(0,0,0,0.4)", marginLeft: 2 }}>/day</span>
+    </span>
+  );
+
+  if (isMobile) {
+    return (
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          padding: "14px 0",
+          borderBottom: `1px solid rgba(0,0,0,0.08)`,
+        }}
+      >
+        {/* Left: code + name + spec stacked */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1, minWidth: 0 }}>
+          <div style={{ ...monoXsStyle, color: "rgba(0,0,0,0.35)" }}>
+            {item.code}{hotBadge}
+          </div>
+          <span
+            style={{
+              fontFamily: "var(--font-mono)",
+              fontSize: 13,
+              letterSpacing: "0.05em",
+              color: kiddoColors.black,
+              fontWeight: 700,
+            }}
+          >
+            {item.name}
+          </span>
+          <div style={{ ...monoXsStyle, color: "rgba(0,0,0,0.45)" }}>
+            {item.spec}
+          </div>
+        </div>
+        {/* Right: price */}
+        <div style={{ flexShrink: 0, marginLeft: 12, paddingTop: 2 }}>
+          {priceEl}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -160,26 +241,7 @@ function LedgerRow({ item }: { item: EquipmentItem }) {
     >
       {/* REF */}
       <div style={{ ...monoXsStyle, color: "rgba(0,0,0,0.35)", paddingLeft: 0 }}>
-        {item.code}
-        {item.hot && (
-          <span
-            style={{
-              marginLeft: 4,
-              display: "inline-block",
-              background: kiddoColors.lime,
-              color: kiddoColors.black,
-              fontSize: 7,
-              fontFamily: "var(--font-mono)",
-              letterSpacing: "0.1em",
-              textTransform: "uppercase",
-              padding: "1px 4px",
-              borderRadius: 2,
-              verticalAlign: "middle",
-            }}
-          >
-            HOT
-          </span>
-        )}
+        {item.code}{hotBadge}
       </div>
 
       {/* ITEM */}
@@ -211,27 +273,7 @@ function LedgerRow({ item }: { item: EquipmentItem }) {
       </div>
 
       {/* PER DAY */}
-      <div>
-        {item.free ? (
-          <span
-            style={{
-              ...monoStyle,
-              color: kiddoColors.black,
-              background: kiddoColors.lime,
-              padding: "3px 7px",
-              borderRadius: 3,
-              display: "inline-block",
-            }}
-          >
-            FREE
-          </span>
-        ) : (
-          <span style={{ ...monoStyle, color: kiddoColors.black, fontWeight: 700 }}>
-            €{item.price}
-            <span style={{ ...monoXsStyle, color: "rgba(0,0,0,0.4)", marginLeft: 2 }}>/day</span>
-          </span>
-        )}
-      </div>
+      <div>{priceEl}</div>
 
       {/* + button */}
       <div style={{ display: "flex", justifyContent: "flex-end" }}>
@@ -273,6 +315,7 @@ function CategoryChapter({
   category: EquipmentCategory;
   index: number;
 }) {
+  const isMobile = useIsMobile();
   const chapterNum = String(index + 1).padStart(2, "0");
 
   return (
@@ -338,23 +381,25 @@ function CategoryChapter({
         </div>
       </div>
 
-      {/* Column headers */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "90px 1fr 1fr 120px 80px 44px",
-          gap: 0,
-          paddingBottom: 8,
-          borderBottom: `1px solid rgba(0,0,0,0.15)`,
-          marginBottom: 0,
-        }}
-      >
-        {["REF", "ITEM", "SPEC", "STOCK", "PER DAY", ""].map((h) => (
-          <div key={h} style={{ ...monoXsStyle, color: "rgba(0,0,0,0.35)" }}>
-            {h}
-          </div>
-        ))}
-      </div>
+      {/* Column headers — hidden on mobile */}
+      {!isMobile && (
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "90px 1fr 1fr 120px 80px 44px",
+            gap: 0,
+            paddingBottom: 8,
+            borderBottom: `1px solid rgba(0,0,0,0.15)`,
+            marginBottom: 0,
+          }}
+        >
+          {["REF", "ITEM", "SPEC", "STOCK", "PER DAY", ""].map((h) => (
+            <div key={h} style={{ ...monoXsStyle, color: "rgba(0,0,0,0.35)" }}>
+              {h}
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Rows */}
       {category.items.map((item) => (
@@ -367,6 +412,7 @@ function CategoryChapter({
 /* ─── Section 1: EqCatalogCover ─────────────────────────────────────────── */
 
 function EqCatalogCover() {
+  const isMobile = useIsMobile();
   return (
     <section
       style={{
@@ -427,7 +473,7 @@ function EqCatalogCover() {
           zIndex: 1,
           flex: 1,
           display: "grid",
-          gridTemplateColumns: "1fr auto",
+          gridTemplateColumns: isMobile ? "1fr" : "1fr auto",
           gap: "clamp(2rem, 4vw, 5rem)",
           alignItems: "center",
           paddingTop: "clamp(3rem, 6vw, 6rem)",
@@ -445,7 +491,7 @@ function EqCatalogCover() {
           <h1
             style={{
               ...displayStyle,
-              fontSize: "clamp(70px, 12vw, 150px)",
+              fontSize: isMobile ? 72 : "clamp(70px, 12vw, 150px)",
               color: kiddoColors.black,
               marginBottom: 16,
             }}
@@ -455,7 +501,7 @@ function EqCatalogCover() {
               <HandwrittenWord
                 text="gear"
                 color={kiddoColors.lime}
-                fontSize={150}
+                fontSize={isMobile ? 72 : 150}
                 rotation={-2}
               />
             </span>
@@ -601,8 +647,8 @@ function EqStickyToolbar({
     <div
       style={{
         position: "sticky",
-        top: 0,
-        zIndex: 50,
+        top: 64,
+        zIndex: 40,
         background: kiddoColors.lime,
         borderBottom: `2px solid ${kiddoColors.black}`,
       }}
@@ -839,6 +885,7 @@ function EqCantFindIt() {
 /* ─── Main Page Component ────────────────────────────────────────────────── */
 
 export default function EquipmentPageClient() {
+  const isMobile = useIsMobile();
   const [activeFilter, setActiveFilter] = useState<FilterTab>("ALL");
 
   const handleFilterSelect = (tab: FilterTab) => {

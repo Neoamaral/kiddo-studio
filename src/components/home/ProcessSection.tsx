@@ -11,6 +11,7 @@ import {
   kiddoColors,
 } from "@/components/kiddo-assets";
 import { BOOKING_HREF } from "@/lib/site";
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 const steps = [
   {
@@ -53,6 +54,7 @@ const stepContent = (step: (typeof steps)[0]) => (
 );
 
 export default function ProcessSection() {
+  const isMobile = useIsMobile();
   return (
     <section className="section-cream py-20 lg:py-32">
       <div className="kiddo-container flex flex-col items-center">
@@ -63,7 +65,7 @@ export default function ProcessSection() {
             HOW IT WORKS — IT&apos;S
           </p>
           <div className="flex items-end justify-center gap-3">
-            <HandwrittenWord text="easy." fontSize={80} rotation={-4} color={kiddoColors.black} />
+            <HandwrittenWord text="easy." fontSize={isMobile ? 44 : 80} rotation={-4} color={kiddoColors.black} />
             <div className="mb-4">
               <BrushUnderline variant="short" width={130} color={kiddoColors.lime} />
             </div>

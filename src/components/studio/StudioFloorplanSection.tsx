@@ -1,7 +1,9 @@
 "use client";
 import { HandwrittenWord, kiddoColors } from "@/components/kiddo-assets";
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 export default function StudioFloorplanSection() {
+  const isMobile = useIsMobile();
   return (
     <section
       style={{
@@ -84,16 +86,16 @@ export default function StudioFloorplanSection() {
           style={{
             background: "#F8F5EE",
             border: "1px solid rgba(0,0,0,0.1)",
-            aspectRatio: "16/9",
-            overflow: "hidden",
+            overflow: isMobile ? "auto" : "hidden",
             position: "relative",
-          }}
+            WebkitOverflowScrolling: "touch",
+          } as React.CSSProperties}
         >
           <svg
             viewBox="0 0 800 450"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
-            style={{ width: "100%", height: "100%" }}
+            style={{ width: "100%", height: "100%", minWidth: isMobile ? 600 : undefined, display: "block", aspectRatio: "16/9" }}
           >
             {/* Grid pattern */}
             <defs>

@@ -44,7 +44,7 @@ export default function Footer() {
   return (
     <footer className="section-dark">
       <div className="kiddo-container py-16">
-        <div className="grid grid-cols-1 md:grid-cols-[auto_1fr_1fr_1fr_1fr_auto] gap-10 items-start">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-[auto_1fr_1fr_1fr_1fr_auto] gap-10 items-start">
           {/* Brand col */}
           <div className="flex flex-col gap-3">
             <KiddoLogo color="white" size="md" />
@@ -75,7 +75,7 @@ export default function Footer() {
           ))}
 
           {/* Badge */}
-          <div className="flex items-center">
+          <div className="hidden lg:flex items-center">
             <CircularBadgeSeal
               size={110}
               spinning
