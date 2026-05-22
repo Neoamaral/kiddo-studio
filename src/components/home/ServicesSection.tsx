@@ -44,28 +44,12 @@ export default function ServicesSection() {
           >
             <SectionLabelNumber number={card.num} />
 
-            {/* Icon or image */}
+            {/* Icon */}
             <div className="relative flex items-end" style={{ minHeight: 120 }}>
-              {card.icon ? (
-                <>
-                  <div className="absolute inset-0 flex items-center justify-center opacity-80">
-                    <NeonHighlightStroke variant="square" width={110} opacity={0.7} />
-                  </div>
-                  <div className="relative z-10">{card.icon}</div>
-                </>
-              ) : (
-                <img
-                  src={card.img}
-                  alt={card.title}
-                  style={{
-                    width: 180,
-                    height: 140,
-                    objectFit: "cover",
-                    transform: "rotate(2deg)",
-                    display: "block",
-                  }}
-                />
-              )}
+              <div className="absolute inset-0 flex items-center justify-center opacity-80">
+                <NeonHighlightStroke variant="square" width={110} opacity={0.7} />
+              </div>
+              <div className="relative z-10">{card.icon}</div>
             </div>
 
             <h3
