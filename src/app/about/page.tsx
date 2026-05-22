@@ -1,19 +1,26 @@
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
+import AboutHeroSection from "@/components/about/AboutHeroSection";
+import AboutStorySection from "@/components/about/AboutStorySection";
+import AboutValuesSection from "@/components/about/AboutValuesSection";
+import AboutNumbersSection from "@/components/about/AboutNumbersSection";
+import AboutCtaSection from "@/components/about/AboutCtaSection";
 
-export const metadata = { title: "About — Kiddo Studio" };
+export const metadata = {
+  title: "About — Kiddo Studio",
+  description: "A creative playground in the heart of Lisbon. Built for filmmakers, photographers, brands, and weirdos.",
+};
 
 export default function AboutPage() {
   return (
     <>
       <Header />
-      <main className="section-cream min-h-screen flex flex-col items-center justify-center gap-4">
-        <h1 className="font-display text-kiddo-black" style={{ fontSize: "clamp(3rem,8vw,7rem)", lineHeight: 1 }}>
-          ABOUT US
-        </h1>
-        <p className="font-mono text-[11px] tracking-[0.3em] uppercase text-black/40">
-          Page coming soon
-        </p>
+      <main>
+        <AboutHeroSection />
+        <AboutStorySection />
+        <AboutValuesSection />
+        <AboutNumbersSection />
+        <AboutCtaSection />
       </main>
       <Footer />
     </>
