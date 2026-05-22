@@ -39,46 +39,72 @@ export default function ContactSection() {
       {/* ── Part 1: Hero ── */}
       <section
         style={{
-          background: "#F2EFE6",
           position: "relative",
           overflow: "hidden",
-          padding: "60px 0 0",
-          minHeight: 600,
+          minHeight: isMobile ? 480 : 640,
+          display: "flex",
         }}
       >
-        {/* Decorations */}
+        {/* Background photo — full bleed */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/images/studio-interior.jpg"
+          alt=""
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            objectPosition: "center",
+            filter: "grayscale(30%) brightness(0.45)",
+          }}
+        />
+        {/* Subtle cream tint overlay on the left so text stays legible */}
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            background: isMobile
+              ? "rgba(18,18,18,0.45)"
+              : "linear-gradient(to right, rgba(18,18,18,0.7) 50%, rgba(18,18,18,0.25) 100%)",
+          }}
+        />
+
+        {/* Decorations — only on desktop, inside photo area */}
         {!isMobile && (
-          <div style={{ position: "absolute", top: 60, left: 80, opacity: 0.4 }}>
-            <ScribbleArrowIcon variant="diagonal" width={70} height={70} />
+          <div style={{ position: "absolute", top: 40, right: 100 }}>
+            <HandDrawnStarIcon width={44} color={"#C8E820"} />
           </div>
         )}
         {!isMobile && (
-          <div style={{ position: "absolute", top: 100, right: 120 }}>
-            <HandDrawnStarIcon width={50} color={"#C8E820"} />
-          </div>
-        )}
-        {!isMobile && (
-          <div
-            style={{
-              position: "absolute",
-              bottom: 80,
-              left: 200,
-              transform: "rotate(-12deg)",
-            }}
-          >
-            <CircularBadgeSeal size={90} color={"#1A1A1A"} bgColor={"#C8E820"} spinning />
+          <div style={{ position: "absolute", bottom: 48, right: 80 }}>
+            <CircularBadgeSeal size={88} color={"#C8E820"} bgColor={"transparent"} spinning />
           </div>
         )}
 
-        <div className="kiddo-container" style={{ position: "relative" }}>
+        {/* Content */}
+        <div
+          className="kiddo-container"
+          style={{
+            position: "relative",
+            zIndex: 2,
+            paddingTop: isMobile ? 48 : 72,
+            paddingBottom: isMobile ? 48 : 80,
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "flex-end",
+            width: "100%",
+          }}
+        >
           <p
             style={{
               fontFamily: "var(--font-mono)",
               fontSize: 9,
               letterSpacing: "0.25em",
               textTransform: "uppercase",
-              color: "rgba(0,0,0,0.45)",
-              marginBottom: 30,
+              color: "rgba(255,255,255,0.5)",
+              marginBottom: 24,
             }}
           >
             CONTACT · GET IN TOUCH
@@ -89,31 +115,30 @@ export default function ContactSection() {
             style={{
               position: "relative",
               display: "inline-block",
-              marginBottom: -20,
+              marginBottom: 0,
             }}
           >
             <h1>
-              <HandwrittenWord text="hi." color={"#C8E820"} fontSize={"clamp(72px, 22vw, 420px)"} rotation={-3} />
+              <HandwrittenWord text="hi." color={"#C8E820"} fontSize={"clamp(72px, 22vw, 380px)"} rotation={-3} />
             </h1>
-            {/* Hand-drawn underline below */}
             <div
               style={{
                 position: "absolute",
                 left: 30,
-                bottom: -30,
+                bottom: -20,
                 transform: "rotate(-2deg)",
               }}
             >
-              <BrushUnderline variant="long" color={"#1A1A1A"} width={isMobile ? 220 : 380} />
+              <BrushUnderline variant="long" color={"rgba(255,255,255,0.6)"} width={isMobile ? 200 : 340} />
             </div>
           </div>
 
           <p
             style={{
-              fontSize: 22,
-              color: "rgba(0,0,0,0.65)",
-              maxWidth: 460,
-              marginTop: 56,
+              fontSize: isMobile ? 18 : 22,
+              color: "rgba(255,255,255,0.75)",
+              maxWidth: 420,
+              marginTop: 48,
               fontFamily: "var(--font-hand)",
               lineHeight: 1.5,
             }}
