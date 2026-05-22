@@ -32,3 +32,5 @@ npm-debug.log*
 
 # Source assets (originals, not needed for build)
 asset/
+
+.vercel

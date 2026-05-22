@@ -1,19 +1,18 @@
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
+import ProjectsPageClient from "@/components/projects/ProjectsPageClient";
 
-export const metadata = { title: "Projects — Kiddo Studio" };
+export const metadata = {
+  title: "Projects — Kiddo Studio",
+  description: "Our work. Fashion, film, commercial, beauty. Shot at Kiddo Studio, Lisbon.",
+};
 
 export default function ProjectsPage() {
   return (
     <>
       <Header />
-      <main className="section-cream min-h-screen flex flex-col items-center justify-center gap-4">
-        <h1 className="font-display text-kiddo-black" style={{ fontSize: "clamp(3rem,8vw,7rem)", lineHeight: 1 }}>
-          PROJECTS
-        </h1>
-        <p className="font-mono text-[11px] tracking-[0.3em] uppercase text-black/40">
-          Page coming soon
-        </p>
+      <main>
+        <ProjectsPageClient />
       </main>
       <Footer />
     </>
