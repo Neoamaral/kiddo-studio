@@ -1,0 +1,38 @@
+{
+  "_meta": {
+    "source": "Placeholder — design-phase values, NOT from Notion yet",
+    "notionPageId": "3b9fc4b3670f80a383c8c5ea16c9773d",
+    "syncedAt": "",
+    "rowCount": 22,
+    "vatIncluded": true,
+    "notes": "Seeded from the original EQUIPMENT_DATA literal in EquipmentPageClient.tsx so the refactor is visually a no-op. Replace wholesale on the first real Notion sync — see scripts/sync-equipment.md."
+  },
+  "rows": [
+    { "code": "CAM-01", "category": "CAMERA · BODIES", "name": "Sony FX6", "spec": "Full-frame cine · 4K 120fps", "rate": { "kind": "fixed", "amount": 150, "per": "day" }, "inStock": 1, "hot": true },
+    { "code": "CAM-02", "category": "CAMERA · BODIES", "name": "Sony FX3", "spec": "Compact cine · 4K 120fps", "rate": { "kind": "fixed", "amount": 120, "per": "day" }, "inStock": 2 },
+    { "code": "CAM-03", "category": "CAMERA · BODIES", "name": "Canon R5 C", "spec": "Hybrid · 8K · RF mount", "rate": { "kind": "fixed", "amount": 130, "per": "day" }, "inStock": 1 },
+    { "code": "CAM-04", "category": "CAMERA · BODIES", "name": "Blackmagic 6K Pro", "spec": "Cinema · BRAW", "rate": { "kind": "fixed", "amount": 100, "per": "day" }, "inStock": 2 },
+    { "code": "CAM-05", "category": "CAMERA · BODIES", "name": "Sony A7S III", "spec": "Mirrorless · low-light king", "rate": { "kind": "fixed", "amount": 80, "per": "day" }, "inStock": 3 },
+
+    { "code": "LIT-01", "category": "LIGHTING", "name": "Aputure 600d Pro", "spec": "Bowens · daylight · 600W", "rate": { "kind": "fixed", "amount": 70, "per": "day" }, "inStock": 2, "hot": true },
+    { "code": "LIT-02", "category": "LIGHTING", "name": "Aputure 300x", "spec": "Bicolor · battery option", "rate": { "kind": "fixed", "amount": 45, "per": "day" }, "inStock": 4 },
+    { "code": "LIT-03", "category": "LIGHTING", "name": "Astera Titan Tubes ×6", "spec": "RGB · wireless DMX", "rate": { "kind": "fixed", "amount": 120, "per": "day" }, "inStock": 6 },
+    { "code": "LIT-04", "category": "LIGHTING", "name": "Aputure MC Pro RGB", "spec": "Pocket pad · CRI 96", "rate": { "kind": "fixed", "amount": 20, "per": "day" }, "inStock": 8 },
+    { "code": "LIT-05", "category": "LIGHTING", "name": "UV Tube Kit", "spec": "365nm · for fluo shoots", "rate": { "kind": "fixed", "amount": 60, "per": "day" }, "inStock": 2 },
+
+    { "code": "LNS-01", "category": "LENSES", "name": "Sigma 24-70mm f/2.8", "spec": "E-mount · workhorse zoom", "rate": { "kind": "fixed", "amount": 40, "per": "day" }, "inStock": 2 },
+    { "code": "LNS-02", "category": "LENSES", "name": "Sony GM 85mm f/1.4", "spec": "Portrait · creamy bokeh", "rate": { "kind": "fixed", "amount": 45, "per": "day" }, "inStock": 1 },
+    { "code": "LNS-03", "category": "LENSES", "name": "Sony GM 16-35mm f/2.8", "spec": "Wide zoom · landscape", "rate": { "kind": "fixed", "amount": 45, "per": "day" }, "inStock": 1 },
+    { "code": "LNS-04", "category": "LENSES", "name": "Laowa 24mm Probe", "spec": "Macro · weird angles", "rate": { "kind": "fixed", "amount": 60, "per": "day" }, "inStock": 1, "hot": true },
+    { "code": "LNS-05", "category": "LENSES", "name": "Vintage Helios 44-2", "spec": "Swirly · soft · loved", "rate": { "kind": "fixed", "amount": 15, "per": "day" }, "inStock": 3 },
+
+    { "code": "AUD-01", "category": "AUDIO", "name": "Sennheiser MKH 416", "spec": "Shotgun · industry standard", "rate": { "kind": "fixed", "amount": 30, "per": "day" }, "inStock": 2 },
+    { "code": "AUD-02", "category": "AUDIO", "name": "Røde Wireless Pro ×2", "spec": "Lavalier · 32-bit float", "rate": { "kind": "fixed", "amount": 30, "per": "day" }, "inStock": 2 },
+    { "code": "AUD-03", "category": "AUDIO", "name": "Zoom F6 Recorder", "spec": "6-track · 32-bit float", "rate": { "kind": "fixed", "amount": 35, "per": "day" }, "inStock": 1 },
+
+    { "code": "GRP-01", "category": "GRIP & SUPPORT", "name": "Ronin RS4 Pro", "spec": "Gimbal · 4.5kg payload", "rate": { "kind": "fixed", "amount": 60, "per": "day" }, "inStock": 2 },
+    { "code": "GRP-02", "category": "GRIP & SUPPORT", "name": "Manfrotto 504X", "spec": "Tripod · fluid head", "rate": { "kind": "fixed", "amount": 25, "per": "day" }, "inStock": 4 },
+    { "code": "GRP-03", "category": "GRIP & SUPPORT", "name": "Slider 1.2m", "spec": "Motorised · timelapse", "rate": { "kind": "fixed", "amount": 35, "per": "day" }, "inStock": 1 },
+    { "code": "GRP-04", "category": "GRIP & SUPPORT", "name": "C-stand kit (×4)", "spec": "Flags · arms · sandbags", "rate": { "kind": "free" }, "inStock": 6, "hot": true }
+  ]
+}

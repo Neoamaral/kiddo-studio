@@ -9,88 +9,16 @@ import {
   kiddoColors,
 } from "@/components/kiddo-assets";
 import { useIsMobile } from "@/hooks/useIsMobile";
-
-/* ─── Data ──────────────────────────────────────────────────────────────── */
-
-interface EquipmentItem {
-  code: string;
-  name: string;
-  spec: string;
-  price: number;
-  hot?: boolean;
-  inStock: number;
-  free?: boolean;
-}
-
-interface EquipmentCategory {
-  code: string;
-  cat: string;
-  count: number;
-  items: EquipmentItem[];
-}
-
-const EQUIPMENT_DATA: EquipmentCategory[] = [
-  {
-    code: "CAM",
-    cat: "CAMERA · BODIES",
-    count: 5,
-    items: [
-      { code: "CAM-01", name: "Sony FX6",          spec: "Full-frame cine · 4K 120fps",  price: 150, hot: true,  inStock: 1 },
-      { code: "CAM-02", name: "Sony FX3",          spec: "Compact cine · 4K 120fps",     price: 120, inStock: 2 },
-      { code: "CAM-03", name: "Canon R5 C",        spec: "Hybrid · 8K · RF mount",       price: 130, inStock: 1 },
-      { code: "CAM-04", name: "Blackmagic 6K Pro", spec: "Cinema · BRAW",                price: 100, inStock: 2 },
-      { code: "CAM-05", name: "Sony A7S III",      spec: "Mirrorless · low-light king",  price: 80,  inStock: 3 },
-    ],
-  },
-  {
-    code: "LIT",
-    cat: "LIGHTING",
-    count: 5,
-    items: [
-      { code: "LIT-01", name: "Aputure 600d Pro",      spec: "Bowens · daylight · 600W",  price: 70, hot: true, inStock: 2 },
-      { code: "LIT-02", name: "Aputure 300x",          spec: "Bicolor · battery option",  price: 45, inStock: 4 },
-      { code: "LIT-03", name: "Astera Titan Tubes ×6", spec: "RGB · wireless DMX",        price: 120, inStock: 6 },
-      { code: "LIT-04", name: "Aputure MC Pro RGB",    spec: "Pocket pad · CRI 96",       price: 20, inStock: 8 },
-      { code: "LIT-05", name: "UV Tube Kit",           spec: "365nm · for fluo shoots",   price: 60, inStock: 2 },
-    ],
-  },
-  {
-    code: "LNS",
-    cat: "LENSES",
-    count: 5,
-    items: [
-      { code: "LNS-01", name: "Sigma 24-70mm f/2.8",   spec: "E-mount · workhorse zoom",  price: 40, inStock: 2 },
-      { code: "LNS-02", name: "Sony GM 85mm f/1.4",    spec: "Portrait · creamy bokeh",   price: 45, inStock: 1 },
-      { code: "LNS-03", name: "Sony GM 16-35mm f/2.8", spec: "Wide zoom · landscape",     price: 45, inStock: 1 },
-      { code: "LNS-04", name: "Laowa 24mm Probe",      spec: "Macro · weird angles",      price: 60, hot: true, inStock: 1 },
-      { code: "LNS-05", name: "Vintage Helios 44-2",   spec: "Swirly · soft · loved",     price: 15, inStock: 3 },
-    ],
-  },
-  {
-    code: "AUD",
-    cat: "AUDIO",
-    count: 3,
-    items: [
-      { code: "AUD-01", name: "Sennheiser MKH 416",   spec: "Shotgun · industry standard", price: 30, inStock: 2 },
-      { code: "AUD-02", name: "Røde Wireless Pro ×2", spec: "Lavalier · 32-bit float",     price: 30, inStock: 2 },
-      { code: "AUD-03", name: "Zoom F6 Recorder",     spec: "6-track · 32-bit float",      price: 35, inStock: 1 },
-    ],
-  },
-  {
-    code: "GRP",
-    cat: "GRIP & SUPPORT",
-    count: 4,
-    items: [
-      { code: "GRP-01", name: "Ronin RS4 Pro",    spec: "Gimbal · 4.5kg payload",  price: 60, inStock: 2 },
-      { code: "GRP-02", name: "Manfrotto 504X",   spec: "Tripod · fluid head",     price: 25, inStock: 4 },
-      { code: "GRP-03", name: "Slider 1.2m",      spec: "Motorised · timelapse",   price: 35, inStock: 1 },
-      { code: "GRP-04", name: "C-stand kit (×4)", spec: "Flags · arms · sandbags", price: 0,  free: true, hot: true, inStock: 6 },
-    ],
-  },
-];
-
-const FILTER_TABS = ["ALL", "CAM", "LIT", "LNS", "AUD", "GRP"] as const;
-type FilterTab = (typeof FILTER_TABS)[number];
+import type { EquipmentCategory, EquipmentItem } from "@/data/types";
+import {
+  CATALOGUE_STRAPLINE,
+  CATEGORY_SUMMARY,
+  EQUIPMENT_CATALOGUE,
+  FILTER_TABS,
+  STOCK_BAR_MAX,
+  type FilterTab,
+} from "@/data/equipment";
+import { eurPrefix, formatRate, periodSuffix } from "@/lib/money";
 
 /* ─── Helper styles ─────────────────────────────────────────────────────── */
 
@@ -118,7 +46,8 @@ const displayStyle: React.CSSProperties = {
 
 /* ─── Stock Bars ─────────────────────────────────────────────────────────── */
 
-function StockBars({ count, max = 8 }: { count: number; max?: number }) {
+function StockBars({ count, max = STOCK_BAR_MAX }: { count: number; max?: number }) {
+  const filled = Math.min(count, max);
   return (
     <div className="flex items-center gap-[3px]">
       {Array.from({ length: max }).map((_, i) => (
@@ -128,7 +57,7 @@ function StockBars({ count, max = 8 }: { count: number; max?: number }) {
             width: 6,
             height: 14,
             borderRadius: 2,
-            background: i < count ? kiddoColors.black : "rgba(0,0,0,0.12)",
+            background: i < filled ? kiddoColors.black : "rgba(0,0,0,0.12)",
             transition: "background 0.15s",
           }}
         />
@@ -164,25 +93,30 @@ function LedgerRow({ item }: { item: EquipmentItem }) {
     </span>
   ) : null;
 
-  const priceEl = item.free ? (
-    <span
-      style={{
-        ...monoStyle,
-        color: kiddoColors.black,
-        background: kiddoColors.lime,
-        padding: "3px 7px",
-        borderRadius: 3,
-        display: "inline-block",
-      }}
-    >
-      FREE
-    </span>
-  ) : (
-    <span style={{ ...monoStyle, color: kiddoColors.black, fontWeight: 700 }}>
-      €{item.price}
-      <span style={{ ...monoXsStyle, color: "rgba(0,0,0,0.4)", marginLeft: 2 }}>/day</span>
-    </span>
-  );
+  // NOTE: the ledger is the one place on the site that PREFIXES the € symbol and
+  // renders the period in its own span. Everywhere else suffixes it (see money.ts).
+  const priceEl =
+    item.rate.kind === "free" || item.rate.kind === "onRequest" ? (
+      <span
+        style={{
+          ...monoStyle,
+          color: kiddoColors.black,
+          background: kiddoColors.lime,
+          padding: "3px 7px",
+          borderRadius: 3,
+          display: "inline-block",
+        }}
+      >
+        {formatRate(item.rate)}
+      </span>
+    ) : (
+      <span style={{ ...monoStyle, color: kiddoColors.black, fontWeight: 700 }}>
+        {eurPrefix(item.rate.amount)}
+        <span style={{ ...monoXsStyle, color: "rgba(0,0,0,0.4)", marginLeft: 2 }}>
+          {periodSuffix(item.rate.per)}
+        </span>
+      </span>
+    );
 
   if (isMobile) {
     return (
@@ -377,7 +311,7 @@ function CategoryChapter({
             zIndex: 1,
           }}
         >
-          {category.count} items
+          {category.items.length} items
         </div>
       </div>
 
@@ -462,7 +396,7 @@ function EqCatalogCover() {
         <span style={{ ...monoXsStyle, color: "rgba(0,0,0,0.5)" }}>KIDDO STUDIO</span>
         <span style={{ ...monoXsStyle, color: "rgba(0,0,0,0.5)" }}>EST. 2023 · LISBON</span>
         <span style={{ ...monoXsStyle, color: "rgba(0,0,0,0.5)" }}>CATALOGUE VOL. 1</span>
-        <span style={{ ...monoXsStyle, color: "rgba(0,0,0,0.5)" }}>22 ITEMS · 5 CATEGORIES</span>
+        <span style={{ ...monoXsStyle, color: "rgba(0,0,0,0.5)" }}>{CATALOGUE_STRAPLINE}</span>
       </div>
 
       {/* Main content */}
@@ -519,13 +453,7 @@ function EqCatalogCover() {
               borderTop: `1px solid rgba(0,0,0,0.12)`,
             }}
           >
-            {[
-              { label: "CAMERAS", value: "5 bodies" },
-              { label: "LIGHTING", value: "5 fixtures" },
-              { label: "LENSES", value: "5 optics" },
-              { label: "AUDIO", value: "3 mics" },
-              { label: "GRIP", value: "4 items" },
-            ].map((d) => (
+            {CATEGORY_SUMMARY.map((d) => (
               <div key={d.label} style={{ minWidth: 80 }}>
                 <div style={{ ...monoXsStyle, color: "rgba(0,0,0,0.35)", marginBottom: 4 }}>
                   {d.label}
@@ -714,8 +642,8 @@ function EqStickyToolbar({
 function EqInventory({ activeFilter }: { activeFilter: FilterTab }) {
   const visibleCategories =
     activeFilter === "ALL"
-      ? EQUIPMENT_DATA
-      : EQUIPMENT_DATA.filter((c) => c.code === activeFilter);
+      ? EQUIPMENT_CATALOGUE
+      : EQUIPMENT_CATALOGUE.filter((c) => c.code === activeFilter);
 
   return (
     <section
@@ -731,7 +659,7 @@ function EqInventory({ activeFilter }: { activeFilter: FilterTab }) {
           <CategoryChapter
             key={category.code}
             category={category}
-            index={EQUIPMENT_DATA.indexOf(category)}
+            index={EQUIPMENT_CATALOGUE.indexOf(category)}
           />
         ))}
       </div>
