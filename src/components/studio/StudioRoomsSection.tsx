@@ -8,6 +8,8 @@ import {
   kiddoColors,
 } from "@/components/kiddo-assets";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import { spaceById, spaceFromRate } from "@/data/spaces";
+import { formatRate } from "@/lib/money";
 
 /* ─── Data ──────────────────────────────────────────────────────────────── */
 
@@ -23,7 +25,9 @@ interface Room {
   desc: string;
   specs: RoomSpec[];
   src: string;
-  price: string;
+  /** Literal copy for rooms with no rental rate of their own. Priced rooms
+   * derive theirs from src/data/spaces.ts via spaceById(id). */
+  price?: string;
   bg: string;
   accent: string;
   dark: boolean;
@@ -50,7 +54,7 @@ const ROOMS: Room[] = [
       ["ACCESS", "Drive-in"],
     ],
     src: "/images/space-cyclorama.jpg",
-    price: "FROM 280€/DAY",
+
     bg: "#fff",
     accent: kiddoColors.lime,
     dark: false,
@@ -71,7 +75,7 @@ const ROOMS: Room[] = [
       ["SOUND", "5.1 mon"],
     ],
     src: "/images/space-black-box.jpg",
-    price: "FROM 320€/DAY",
+
     bg: "#111111",
     accent: kiddoColors.lime,
     dark: true,
@@ -195,7 +199,7 @@ function RoomHeader({ room, textColor }: { room: Room; textColor: string }) {
           flexShrink: 0,
         }}
       >
-        {room.price}
+        {room.price ?? formatRate(spaceFromRate(spaceById(room.id)!))}
       </div>
     </div>
   );
