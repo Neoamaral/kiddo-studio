@@ -9,11 +9,8 @@ export const NAV_LINKS = [
 
 export const BOOKING_HREF = "/booking";
 
-export const PRICING_DATA = [
-  { title: "HALF DAY", duration: "4 HOURS", price: "140€",   desc: "Perfect for quick shoots.",  highlight: false },
-  { title: "FULL DAY", duration: "8 HOURS", price: "280€",   desc: "Time to create.",            highlight: true  },
-  { title: "HOURLY",   duration: "",        price: "40€/h",  desc: "Need less time?",            highlight: false },
-];
+// PRICING_DATA moved to src/data/pricing.ts as HOME_PRICING_ROWS — it duplicated
+// the pricing page's tiers in a third, incompatible shape.
 
 export const SPACE_ROOMS = [
   { label: "CYCLORAMA",    src: "/images/space-cyclorama.jpg"  },

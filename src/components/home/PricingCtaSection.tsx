@@ -8,7 +8,8 @@ import {
   CircularBadgeSeal,
   kiddoColors,
 } from "@/components/kiddo-assets";
-import { PRICING_DATA, BOOKING_HREF } from "@/lib/site";
+import { BOOKING_HREF } from "@/lib/site";
+import { HOME_PRICING_ROWS } from "@/data/pricing";
 
 export default function PricingCtaSection() {
   return (
@@ -50,7 +51,7 @@ export default function PricingCtaSection() {
           <p className="font-mono text-[9px] tracking-[0.25em] text-black/40 uppercase mb-2">
             PRICING
           </p>
-          {PRICING_DATA.map((row) => (
+          {HOME_PRICING_ROWS.map((row) => (
             <div key={row.title} className="py-6 flex items-center gap-4">
               <div className="flex flex-col gap-1 flex-1">
                 <span className="font-mono text-[10px] tracking-widest uppercase text-black/50">

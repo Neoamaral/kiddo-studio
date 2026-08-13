@@ -11,130 +11,18 @@ import {
   kiddoColors,
 } from "@/components/kiddo-assets";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import {
+  ADDONS,
+  FAQ,
+  PRICING_TIERS,
+  WEEKEND_BADGE,
+  WEEKEND_MULTIPLIER,
+  tierDisplayPrice,
+  tierUnit,
+} from "@/data/pricing";
+import { TICKET_THEMES } from "./ticketTheme";
+import { formatRate } from "@/lib/money";
 
-interface PricingTicket {
-  id: string;
-  name: string;
-  price: number;
-  unit: string;
-  min: string;
-  tag: string;
-  featured?: boolean;
-  bg: string;
-  text: string;
-  accent: string;
-  bullets: readonly string[];
-  cta: string;
-}
-
-const PRICING_TICKETS: PricingTicket[] = [
-  {
-    id: "h",
-    name: "HOURLY",
-    price: 40,
-    unit: "€/h",
-    min: "MIN. 2H",
-    tag: "QUICK PLAY",
-    bg: "#fff",
-    text: "#1A1A1A",
-    accent: "#C8E820",
-    bullets: [
-      "Full access to the space",
-      "Basic lighting kit included",
-      "WiFi · coffee · sound",
-      "+1 free prep hour",
-    ],
-    cta: "BOOK BY THE HOUR",
-  },
-  {
-    id: "hd",
-    name: "HALF DAY",
-    price: 140,
-    unit: "€",
-    min: "4 HOURS",
-    tag: "MOST FLEXIBLE",
-    bg: "#F2EFE6",
-    text: "#1A1A1A",
-    accent: "#1A1A1A",
-    bullets: [
-      "Everything in Hourly",
-      "Cyclorama OR Black Box",
-      "Free parking spot",
-      "Light setup support",
-    ],
-    cta: "BOOK HALF DAY",
-  },
-  {
-    id: "fd",
-    name: "FULL DAY",
-    price: 280,
-    unit: "€",
-    min: "8 HOURS",
-    tag: "MOST POPULAR",
-    featured: true,
-    bg: "#C8E820",
-    text: "#1A1A1A",
-    accent: "#1A1A1A",
-    bullets: [
-      "Both spaces · all day",
-      "Prop room access",
-      "Lunch arranged on request",
-      "Late checkout possible",
-    ],
-    cta: "BOOK FULL DAY",
-  },
-  {
-    id: "md",
-    name: "MULTI-DAY",
-    price: 700,
-    unit: "€+",
-    min: "3+ DAYS",
-    tag: "BIG BUILDS",
-    bg: "#111111",
-    text: "#fff",
-    accent: "#C8E820",
-    bullets: [
-      "Custom rates",
-      "Dedicated coordinator",
-      "Equipment included",
-      "Build days available",
-    ],
-    cta: "ASK FOR QUOTE",
-  },
-];
-
-const ADDONS = [
-  { name: "EXTRA CYCLORAMA REPAINT", price: "80€" },
-  { name: "PRODUCTION COORDINATOR", price: "180€/day" },
-  { name: "MAKEUP STATION + MIRROR", price: "30€/day" },
-  { name: "GREEN ROOM RESET", price: "FREE" },
-  { name: "EQUIPMENT BUNDLE", price: "FROM 200€" },
-  { name: "OVERNIGHT SET HOLD", price: "100€" },
-];
-
-const FAQ = [
-  {
-    q: "What's included in studio rental?",
-    a: "WiFi, coffee, basic lighting, sound system, climate control, and a friendly human on call.",
-  },
-  {
-    q: "Do you offer crew?",
-    a: "Yes. We have a roster of trusted DPs, gaffers, makeup artists and stylists.",
-  },
-  {
-    q: "Can I store gear overnight?",
-    a: "Multi-day bookings include overnight storage. Single-day shoots can lock-up for a small fee.",
-  },
-  {
-    q: "Cancellation policy?",
-    a: "Full refund up to 7 days before. 50% within 7 days. We're reasonable — talk to us.",
-  },
-  { q: "Do you provide catering?", a: "We don't, but we know who to call." },
-  {
-    q: "How early can I arrive to set up?",
-    a: "Pre-shoot prep hour included. Earlier access available at 30€/h.",
-  },
-];
 
 const monoXs: React.CSSProperties = {
   fontFamily: "var(--font-mono)",
@@ -146,7 +34,7 @@ const monoXs: React.CSSProperties = {
 export default function PricingPageClient() {
   const isMobile = useIsMobile();
   const [billing, setBilling] = useState<"WEEKDAY" | "WEEKEND">("WEEKDAY");
-  const mult = billing === "WEEKEND" ? 1.2 : 1;
+  const mult = billing === "WEEKEND" ? WEEKEND_MULTIPLIER : 1;
   const [openFaq, setOpenFaq] = useState<number | null>(0);
 
   return (
@@ -305,7 +193,7 @@ export default function PricingPageClient() {
                   border: `1px dashed ${kiddoColors.lime}`,
                 }}
               >
-                +20% APPLIED
+                {WEEKEND_BADGE}
               </span>
             )}
           </div>
@@ -314,26 +202,22 @@ export default function PricingPageClient() {
 
       {/* SECTION 2 — TICKETS */}
       <section style={{ padding: 0 }}>
-        {PRICING_TICKETS.map((t, i) => {
-          const showPrice =
-            t.id !== "md"
-              ? Math.round((t.price as number) * mult)
-              : t.price;
-          const subtle =
-            t.text === "#fff"
-              ? "rgba(255,255,255,0.6)"
-              : "rgba(0,0,0,0.6)";
-          const borderColor =
-            t.bg === "#111111"
-              ? "rgba(255,255,255,0.08)"
-              : "rgba(0,0,0,0.08)";
+        {PRICING_TIERS.map((t, i) => {
+          const theme = TICKET_THEMES[t.id];
+          const showPrice = tierDisplayPrice(t, mult);
+          const subtle = theme.dark
+            ? "rgba(255,255,255,0.6)"
+            : "rgba(0,0,0,0.6)";
+          const borderColor = theme.dark
+            ? "rgba(255,255,255,0.08)"
+            : "rgba(0,0,0,0.08)";
 
           return (
             <div
               key={t.id}
               style={{
-                background: t.bg,
-                color: t.text,
+                background: theme.bg,
+                color: theme.text,
                 borderTop: i === 0 ? "none" : `1px solid ${borderColor}`,
                 position: "relative",
                 overflow: "hidden",
@@ -362,7 +246,7 @@ export default function PricingPageClient() {
                       fontFamily: "var(--font-display)",
                       fontSize: "clamp(3rem,6vw,5.75rem)",
                       lineHeight: 0.9,
-                      color: t.text,
+                      color: theme.text,
                       fontWeight: 400,
                       textTransform: "uppercase",
                       margin: 0,
@@ -374,7 +258,7 @@ export default function PricingPageClient() {
                   {t.featured && (
                     <HandwrittenWord
                       text="← pick me"
-                      color={t.text}
+                      color={theme.text}
                       fontSize={30}
                       rotation={-3}
                     />
@@ -404,7 +288,7 @@ export default function PricingPageClient() {
                         fontSize: "clamp(6rem,18vw,17.5rem)",
                         lineHeight: 0.85,
                         letterSpacing: "-0.04em",
-                        color: t.text,
+                        color: theme.text,
                         fontWeight: 400,
                       }}
                     >
@@ -415,18 +299,18 @@ export default function PricingPageClient() {
                         fontFamily: "var(--font-display)",
                         fontSize: "clamp(2rem,4.5vw,4.375rem)",
                         lineHeight: 1,
-                        color: t.text,
+                        color: theme.text,
                         marginTop: 28,
                         fontWeight: 400,
                       }}
                     >
-                      {t.unit}
+                      {tierUnit(t.rate)}
                     </span>
                   </div>
                   <div style={{ marginTop: 4, alignSelf: "center" }}>
                     <BrushUnderline
                       variant="short"
-                      color={t.accent}
+                      color={theme.accent}
                       width={160}
                     />
                   </div>
@@ -460,7 +344,7 @@ export default function PricingPageClient() {
                           gap: 10,
                           fontSize: 13,
                           color:
-                            t.text === "#fff"
+                            theme.dark
                               ? "rgba(255,255,255,0.75)"
                               : "rgba(0,0,0,0.7)",
                           lineHeight: 1.5,
@@ -472,7 +356,7 @@ export default function PricingPageClient() {
                             marginTop: 7,
                             width: 14,
                             height: 1,
-                            background: t.accent,
+                            background: theme.accent,
                             flexShrink: 0,
                           }}
                         />
@@ -491,11 +375,11 @@ export default function PricingPageClient() {
                       textTransform: "uppercase",
                       fontWeight: 700,
                       background:
-                        t.accent === "#C8E820"
+                        theme.limeAccent
                           ? kiddoColors.black
                           : kiddoColors.lime,
                       color:
-                        t.accent === "#C8E820"
+                        theme.limeAccent
                           ? kiddoColors.lime
                           : kiddoColors.black,
                       border: "none",
@@ -630,7 +514,7 @@ export default function PricingPageClient() {
             </div>
             {ADDONS.map((a, i) => (
               <div
-                key={a.name}
+                key={a.id}
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -643,7 +527,7 @@ export default function PricingPageClient() {
                 }}
               >
                 <span style={{ flex: 1, fontSize: 13, fontWeight: 500 }}>
-                  {a.name}
+                  {a.label}
                 </span>
                 <span
                   style={{
@@ -662,7 +546,7 @@ export default function PricingPageClient() {
                     flexShrink: 0,
                   }}
                 >
-                  {a.price}
+                  {formatRate(a.rate)}
                 </span>
               </div>
             ))}
