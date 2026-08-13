@@ -15,124 +15,64 @@ import {
   CATEGORY_SUMMARY,
   EQUIPMENT_CATALOGUE,
   FILTER_TABS,
-  STOCK_BAR_MAX,
   type FilterTab,
 } from "@/data/equipment";
-import { eurPrefix, formatRate, periodSuffix } from "@/lib/money";
-
-/* ─── Helper styles ─────────────────────────────────────────────────────── */
-
-const monoStyle: React.CSSProperties = {
-  fontFamily: "var(--font-mono)",
-  fontSize: 11,
-  letterSpacing: "0.15em",
-  textTransform: "uppercase",
-};
-
-const monoXsStyle: React.CSSProperties = {
-  fontFamily: "var(--font-mono)",
-  fontSize: 9,
-  letterSpacing: "0.25em",
-  textTransform: "uppercase",
-};
-
-const displayStyle: React.CSSProperties = {
-  fontFamily: "var(--font-display)",
-  fontWeight: 400,
-  textTransform: "uppercase",
-  letterSpacing: "-0.02em",
-  lineHeight: 0.9,
-};
-
-/* ─── Stock Bars ─────────────────────────────────────────────────────────── */
-
-function StockBars({ count, max = STOCK_BAR_MAX }: { count: number; max?: number }) {
-  const filled = Math.min(count, max);
-  return (
-    <div className="flex items-center gap-[3px]">
-      {Array.from({ length: max }).map((_, i) => (
-        <div
-          key={i}
-          style={{
-            width: 6,
-            height: 14,
-            borderRadius: 2,
-            background: i < filled ? kiddoColors.black : "rgba(0,0,0,0.12)",
-            transition: "background 0.15s",
-          }}
-        />
-      ))}
-    </div>
-  );
-}
+import {
+  HotBadge,
+  ItemPrice,
+  StockBars,
+  displayStyle,
+  monoStyle,
+  monoXsStyle,
+} from "./ledgerBits";
+import EquipmentDetailModal from "./EquipmentDetailModal";
 
 /* ─── Ledger Row ─────────────────────────────────────────────────────────── */
 
-function LedgerRow({ item }: { item: EquipmentItem }) {
+function LedgerRow({
+  item,
+  onOpen,
+}: {
+  item: EquipmentItem;
+  onOpen: (item: EquipmentItem) => void;
+}) {
   const isMobile = useIsMobile();
   const [hovered, setHovered] = useState(false);
   const [btnHovered, setBtnHovered] = useState(false);
-
-  const hotBadge = item.hot ? (
-    <span
-      style={{
-        marginLeft: 4,
-        display: "inline-block",
-        background: kiddoColors.lime,
-        color: kiddoColors.black,
-        fontSize: 7,
-        fontFamily: "var(--font-mono)",
-        letterSpacing: "0.1em",
-        textTransform: "uppercase",
-        padding: "1px 4px",
-        borderRadius: 2,
-        verticalAlign: "middle",
-      }}
-    >
-      HOT
-    </span>
-  ) : null;
-
-  // NOTE: the ledger is the one place on the site that PREFIXES the € symbol and
-  // renders the period in its own span. Everywhere else suffixes it (see money.ts).
-  const priceEl =
-    item.rate.kind === "free" || item.rate.kind === "onRequest" ? (
-      <span
-        style={{
-          ...monoStyle,
-          color: kiddoColors.black,
-          background: kiddoColors.lime,
-          padding: "3px 7px",
-          borderRadius: 3,
-          display: "inline-block",
-        }}
-      >
-        {formatRate(item.rate)}
-      </span>
-    ) : (
-      <span style={{ ...monoStyle, color: kiddoColors.black, fontWeight: 700 }}>
-        {eurPrefix(item.rate.amount)}
-        <span style={{ ...monoXsStyle, color: "rgba(0,0,0,0.4)", marginLeft: 2 }}>
-          {periodSuffix(item.rate.per)}
-        </span>
-      </span>
-    );
+  const [focused, setFocused] = useState(false);
+  const active = hovered || focused;
 
   if (isMobile) {
     return (
-      <div
+      // A native <button>: the platform already handles tap-vs-scroll, so no
+      // hand-rolled touchstart/touchend distance logic. Trade-off: text inside
+      // a button is not selectable — acceptable, since the modal reproduces
+      // every one of these values as selectable text.
+      <button
+        type="button"
+        className="eq-row-btn"
+        onClick={() => onOpen(item)}
+        aria-haspopup="dialog"
         style={{
           display: "flex",
+          width: "100%",
+          textAlign: "left",
           justifyContent: "space-between",
           alignItems: "flex-start",
           padding: "14px 0",
+          border: "none",
           borderBottom: `1px solid rgba(0,0,0,0.08)`,
+          background: "transparent",
+          font: "inherit",
+          color: "inherit",
+          cursor: "pointer",
+          WebkitTapHighlightColor: "transparent",
         }}
       >
         {/* Left: code + name + spec stacked */}
         <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1, minWidth: 0 }}>
           <div style={{ ...monoXsStyle, color: "rgba(0,0,0,0.35)" }}>
-            {item.code}{hotBadge}
+            {item.code}{item.hot && <HotBadge />}
           </div>
           <span
             style={{
@@ -149,11 +89,43 @@ function LedgerRow({ item }: { item: EquipmentItem }) {
             {item.spec}
           </div>
         </div>
-        {/* Right: price */}
-        <div style={{ flexShrink: 0, marginLeft: 12, paddingTop: 2 }}>
-          {priceEl}
+        {/* Right: price + the same "+" affordance as desktop.
+            A <span>, not a nested <button> — nested interactives are invalid.
+            No aria-label on the row button: it would override the inner text
+            and throw away the code, spec and price a screen reader needs. */}
+        <div
+          style={{
+            flexShrink: 0,
+            marginLeft: 12,
+            paddingTop: 2,
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+          }}
+        >
+          <ItemPrice item={item} />
+          <span
+            aria-hidden="true"
+            style={{
+              width: 30,
+              height: 30,
+              borderRadius: "50%",
+              border: `1px solid rgba(0,0,0,0.22)`,
+              color: "rgba(0,0,0,0.45)",
+              fontSize: 18,
+              fontFamily: "var(--font-mono)",
+              lineHeight: 1,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+            }}
+          >
+            +
+          </span>
+          <span className="sr-only"> — view details</span>
         </div>
-      </div>
+      </button>
     );
   }
 
@@ -168,14 +140,14 @@ function LedgerRow({ item }: { item: EquipmentItem }) {
         gap: 0,
         padding: "14px 0",
         borderBottom: `1px solid rgba(0,0,0,0.08)`,
-        background: hovered ? "#F8F5EE" : "transparent",
+        background: active ? "#F8F5EE" : "transparent",
         transition: "background 0.15s",
         cursor: "default",
       }}
     >
       {/* REF */}
       <div style={{ ...monoXsStyle, color: "rgba(0,0,0,0.35)", paddingLeft: 0 }}>
-        {item.code}{hotBadge}
+        {item.code}{item.hot && <HotBadge />}
       </div>
 
       {/* ITEM */}
@@ -207,30 +179,46 @@ function LedgerRow({ item }: { item: EquipmentItem }) {
       </div>
 
       {/* PER DAY */}
-      <div>{priceEl}</div>
+      <div><ItemPrice item={item} /></div>
 
       {/* + button */}
       <div style={{ display: "flex", justifyContent: "flex-end" }}>
+        {/* Always rendered — it used to be display:none until row hover, which
+            made it unreachable by keyboard and invisible on touch. It still
+            *reads* as emerging on hover: faint ghost at rest, solid when
+            active. The 44px grid cell was already reserved, so nothing shifts. */}
         <button
+          type="button"
+          onClick={() => onOpen(item)}
           onMouseEnter={() => setBtnHovered(true)}
           onMouseLeave={() => setBtnHovered(false)}
-          aria-label={`Enquire about ${item.name}`}
+          onFocus={() => setFocused(true)}
+          onBlur={() => {
+            setFocused(false);
+            setBtnHovered(false);
+          }}
+          aria-haspopup="dialog"
+          aria-label={`View ${item.name} details and photos`}
           style={{
             width: 34,
             height: 34,
             borderRadius: "50%",
-            border: `1px solid ${kiddoColors.black}`,
+            border: `1px solid ${active ? kiddoColors.black : "rgba(0,0,0,0.22)"}`,
             background: btnHovered ? kiddoColors.lime : "transparent",
-            color: kiddoColors.black,
+            color: active ? kiddoColors.black : "rgba(0,0,0,0.3)",
+            opacity: active ? 1 : 0.55,
             fontSize: 20,
             fontFamily: "var(--font-mono)",
             lineHeight: 1,
-            display: hovered ? "flex" : "none",
+            display: "flex",
             alignItems: "center",
             justifyContent: "center",
             cursor: "pointer",
-            transition: "background 0.15s",
+            transition:
+              "background 0.15s, opacity 0.15s, border-color 0.15s, color 0.15s",
             flexShrink: 0,
+            outline: focused ? `2px solid ${kiddoColors.black}` : "none",
+            outlineOffset: 2,
           }}
         >
           +
@@ -245,9 +233,11 @@ function LedgerRow({ item }: { item: EquipmentItem }) {
 function CategoryChapter({
   category,
   index,
+  onOpen,
 }: {
   category: EquipmentCategory;
   index: number;
+  onOpen: (item: EquipmentItem) => void;
 }) {
   const isMobile = useIsMobile();
   const chapterNum = String(index + 1).padStart(2, "0");
@@ -337,7 +327,7 @@ function CategoryChapter({
 
       {/* Rows */}
       {category.items.map((item) => (
-        <LedgerRow key={item.code} item={item} />
+        <LedgerRow key={item.code} item={item} onOpen={onOpen} />
       ))}
     </div>
   );
@@ -592,7 +582,10 @@ function EqStickyToolbar({
           scrollbarWidth: "none",
         }}
       >
-        <style>{`.eq-toolbar::-webkit-scrollbar { display: none; }`}</style>
+        <style>{`.eq-toolbar::-webkit-scrollbar { display: none; }
+          .eq-thumbs::-webkit-scrollbar { display: none; }
+          .eq-row-btn:active { background: #F8F5EE; }
+          .eq-row-btn:focus-visible { outline: 2px solid #1A1A1A; outline-offset: -2px; }`}</style>
         <div
           className="eq-toolbar"
           style={{
@@ -639,7 +632,13 @@ function EqStickyToolbar({
 
 /* ─── Section 3: EqInventory ─────────────────────────────────────────────── */
 
-function EqInventory({ activeFilter }: { activeFilter: FilterTab }) {
+function EqInventory({
+  activeFilter,
+  onOpen,
+}: {
+  activeFilter: FilterTab;
+  onOpen: (item: EquipmentItem) => void;
+}) {
   const visibleCategories =
     activeFilter === "ALL"
       ? EQUIPMENT_CATALOGUE
@@ -660,6 +659,7 @@ function EqInventory({ activeFilter }: { activeFilter: FilterTab }) {
             key={category.code}
             category={category}
             index={EQUIPMENT_CATALOGUE.indexOf(category)}
+            onOpen={onOpen}
           />
         ))}
       </div>
@@ -815,6 +815,9 @@ function EqCantFindIt() {
 export default function EquipmentPageClient() {
   const isMobile = useIsMobile();
   const [activeFilter, setActiveFilter] = useState<FilterTab>("ALL");
+  // One modal for the whole page. Per-row state would mount 22 of them, each
+  // with its own Escape listener and scroll-lock claim.
+  const [openItem, setOpenItem] = useState<EquipmentItem | null>(null);
 
   const handleFilterSelect = (tab: FilterTab) => {
     setActiveFilter(tab);
@@ -830,9 +833,10 @@ export default function EquipmentPageClient() {
       <EqCatalogCover />
       <EqStickyToolbar active={activeFilter} onSelect={handleFilterSelect} />
       <div id="eq-inventory">
-        <EqInventory activeFilter={activeFilter} />
+        <EqInventory activeFilter={activeFilter} onOpen={setOpenItem} />
       </div>
       <EqCantFindIt />
+      <EquipmentDetailModal item={openItem} onClose={() => setOpenItem(null)} />
     </main>
   );
 }

@@ -16,6 +16,7 @@ import type {
   EquipmentCategory,
   EquipmentItem,
   EquipmentSource,
+  EquipmentPhoto,
   EquipmentSourceRow,
 } from "./types";
 import source from "./equipment.source.json";
@@ -60,6 +61,8 @@ function toItem(row: EquipmentSourceRow): EquipmentItem {
     rate: row.rate,
     inStock: row.inStock,
     ...(row.hot ? { hot: true } : {}),
+    ...(row.photos?.length ? { photos: row.photos } : {}),
+    ...(row.description?.trim() ? { description: row.description } : {}),
   };
 }
 
@@ -119,6 +122,16 @@ export const CATEGORY_SUMMARY = EQUIPMENT_CATALOGUE.map((c) => ({
 
 export function itemByCode(code: string): EquipmentItem | undefined {
   return ALL_ITEMS.find((i) => i.code === code);
+}
+
+/** Never undefined — an item with no photos is a normal case, not an error. */
+export function itemPhotos(item: EquipmentItem): readonly EquipmentPhoto[] {
+  return item.photos ?? [];
+}
+
+/** Long-form copy, falling back to the one-line ledger spec. */
+export function itemDescription(item: EquipmentItem): string {
+  return item.description?.trim() || item.spec;
 }
 
 /**

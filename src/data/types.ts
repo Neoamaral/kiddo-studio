@@ -25,6 +25,28 @@ export type Rate =
 
 /* ── Equipment ───────────────────────────────────────────────────────────── */
 
+/**
+ * One equipment photo.
+ *
+ * Sourced from Notion but ALWAYS stored locally: Notion file URLs are signed
+ * and expire in about an hour, so hotlinking one would break the page
+ * silently. See scripts/sync-equipment.md.
+ */
+export interface EquipmentPhoto {
+  /** e.g. "/images/equipment/cam-01/01.jpg". Lowercase; never an http(s) URL. */
+  src: string;
+  /** Required and non-empty. Describes the gear, not the file. */
+  alt: string;
+  /**
+   * Intrinsic pixels. Optional — the gallery stage is ratio-fixed, so these
+   * are not needed to prevent layout shift. Populate when known.
+   */
+  width?: number;
+  height?: number;
+  /** Optional mono caption, house style: "FIG. 02 — REAR I/O". */
+  caption?: string;
+}
+
 export interface EquipmentItem {
   /** User-visible SKU, e.g. "CAM-01". Stable across Notion syncs. */
   code: string;
@@ -34,6 +56,10 @@ export interface EquipmentItem {
   /** Units physically available. Stock bars clamp to STOCK_BAR_MAX. */
   inStock: number;
   hot?: boolean;
+  /** Display order IS array order; index 0 is the cover. Absent means none. */
+  photos?: readonly EquipmentPhoto[];
+  /** Long-form copy for the detail modal. Falls back to `spec` when absent. */
+  description?: string;
 }
 
 export interface EquipmentCategory {
@@ -69,6 +95,8 @@ export interface EquipmentSourceRow {
   hot?: boolean;
   /** Original Notion cell text — keeps the price parse auditable in review. */
   sourceRaw?: string;
+  photos?: EquipmentPhoto[];
+  description?: string;
 }
 
 export interface EquipmentSource {
@@ -79,6 +107,10 @@ export interface EquipmentSource {
     rowCount: number;
     vatIncluded: boolean;
     notes?: string;
+    /** Total photos across all rows. Cross-checked by validate-equipment.ts. */
+    photoCount?: number;
+    /** Last photo download. Separate from syncedAt — prices change far more often. */
+    photosSyncedAt?: string;
   };
   rows: EquipmentSourceRow[];
 }
