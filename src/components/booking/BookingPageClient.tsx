@@ -11,18 +11,20 @@ import {
   TapeStrip,
   kiddoColors,
 } from "@/components/kiddo-assets";
+import {
+  ADDON_OPTIONS,
+  TIME_SLOTS,
+  emptyAddonState,
+  selectedAddonIds,
+} from "@/data/booking";
+import { BOOKABLE_SPACES } from "@/data/spaces";
+import { computeQuote } from "@/lib/quote";
+import { eur, eurSigned, rateAmount } from "@/lib/money";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface AddonState {
-  coord: boolean;
-  mu: boolean;
-  cam: boolean;
-  light: boolean;
-  park: boolean;
-  stor: boolean;
-}
-
+/** All add-on ids, derived from ADDON_OPTIONS. */
+type AddonState = Record<string, boolean>;
 interface BookingFormData {
   name: string;
   email: string;
@@ -32,66 +34,6 @@ interface BookingFormData {
 }
 
 // ─── Data ─────────────────────────────────────────────────────────────────────
-
-const SPACE_OPTIONS = [
-  {
-    id: "cyc",
-    label: "CYCLORAMA",
-    price: "+0€",
-    desc: "Seamless white wall, drive-in ready.",
-    img: "/images/space-cyclorama.jpg",
-  },
-  {
-    id: "blk",
-    label: "BLACK BOX",
-    price: "+40€",
-    desc: "Black-out, smoke-ready, UV rig.",
-    img: "/images/space-black-box.jpg",
-  },
-  {
-    id: "both",
-    label: "BOTH",
-    price: "+80€",
-    desc: "Use the full studio. All day.",
-    img: "/images/space-creative.jpg",
-  },
-];
-
-const TIME_SLOTS = [
-  {
-    id: "am",
-    label: "MORNING",
-    time: "08:00 — 12:00",
-    note: "Best light through east windows",
-  },
-  {
-    id: "pm",
-    label: "AFTERNOON",
-    time: "13:00 — 17:00",
-    note: "Tungsten balanced inside",
-  },
-  {
-    id: "ev",
-    label: "EVENING",
-    time: "18:00 — 22:00",
-    note: "Dark room only after sunset",
-  },
-  {
-    id: "fd",
-    label: "FULL DAY",
-    time: "08:00 — 19:00",
-    note: "11 hours · best value",
-  },
-];
-
-const ADDON_OPTIONS = [
-  { id: "coord", label: "Production coordinator", price: 180 },
-  { id: "mu", label: "Makeup station + mirror", price: 30 },
-  { id: "cam", label: "Camera bundle (FX6 + 3 lenses)", price: 240 },
-  { id: "light", label: "Lighting bundle (3× Aputure)", price: 180 },
-  { id: "park", label: "Parking (2 cars)", price: 20 },
-  { id: "stor", label: "Overnight set hold", price: 100 },
-];
 
 const STEP_LABELS = ["DATE", "SLOT", "SPACE", "ADD-ONS", "DETAILS"];
 
@@ -388,22 +330,15 @@ function BookingSummary({
   onSubmit: () => void;
   isSubmitting: boolean;
 }) {
-  const basePrice = slot === "fd" ? 280 : 140;
-  const spaceUp = space === "blk" ? 40 : space === "both" ? 80 : 0;
-  const addonTotal = (Object.entries(addons) as [keyof AddonState, boolean][])
-    .filter(([, v]) => v)
-    .reduce(
-      (sum, [k]) =>
-        sum + (ADDON_OPTIONS.find((a) => a.id === k)?.price || 0),
-      0
-    );
-  const total = basePrice + spaceUp + addonTotal;
+  const quote = computeQuote({
+    slotId: slot,
+    spaceId: space,
+    addonIds: selectedAddonIds(addons),
+  });
+  const total = quote.total;
 
   const slotObj = TIME_SLOTS.find((t) => t.id === slot);
-  const spaceObj = SPACE_OPTIONS.find((s) => s.id === space);
-  const activeAddons = (Object.entries(addons) as [keyof AddonState, boolean][])
-    .filter(([, v]) => v)
-    .map(([k]) => ADDON_OPTIONS.find((a) => a.id === k)!);
+  const spaceObj = BOOKABLE_SPACES.find((s) => s.id === space);
 
   const canConfirm =
     !!formData.name.trim() && !!formData.email.trim() && !!selectedDate && !!slot && !!space;
@@ -498,16 +433,16 @@ function BookingSummary({
       >
         <PriceRow
           label={`Base · ${slotObj ? slotObj.label : "Half day"}`}
-          value={`${basePrice}€`}
+          value={eur(quote.base.amount)}
         />
-        {spaceUp > 0 && (
+        {quote.space && (
           <PriceRow
-            label={`Space upgrade · ${spaceObj?.label}`}
-            value={`+${spaceUp}€`}
+            label={`Space upgrade · ${quote.space.label}`}
+            value={eurSigned(quote.space.amount)}
           />
         )}
-        {activeAddons.map((a) => (
-          <PriceRow key={a.id} label={a.label} value={`+${a.price}€`} />
+        {quote.addons.map((a) => (
+          <PriceRow key={a.id} label={a.label} value={eurSigned(a.amount)} />
         ))}
       </div>
 
@@ -540,7 +475,7 @@ function BookingSummary({
             color: kiddoColors.lime,
           }}
         >
-          {total}€
+          {eur(total)}
         </div>
       </div>
 
@@ -724,14 +659,7 @@ export default function BookingPageClient() {
   const [selectedDate, setSelectedDate] = useState<number | null>(null);
   const [slot, setSlot] = useState("");
   const [space, setSpace] = useState("");
-  const [addons, setAddons] = useState<AddonState>({
-    coord: false,
-    mu: false,
-    cam: false,
-    light: false,
-    park: false,
-    stor: false,
-  });
+  const [addons, setAddons] = useState<AddonState>(emptyAddonState);
   const [formData, setFormData] = useState<BookingFormData>({
     name: "",
     email: "",
@@ -742,7 +670,7 @@ export default function BookingPageClient() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [bookingRef, setBookingRef] = useState<string | null>(null);
 
-  const toggleAddon = (id: keyof AddonState) => {
+  const toggleAddon = (id: string) => {
     setAddons((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
@@ -762,18 +690,13 @@ export default function BookingPageClient() {
           slot,
           space,
           addons,
-          total: (() => {
-            const basePrice = slot === "fd" ? 280 : 140;
-            const spaceUp = space === "blk" ? 40 : space === "both" ? 80 : 0;
-            const addonTotal = (Object.entries(addons) as [keyof AddonState, boolean][])
-              .filter(([, v]) => v)
-              .reduce(
-                (sum, [k]) =>
-                  sum + (ADDON_OPTIONS.find((a) => a.id === k)?.price || 0),
-                0
-              );
-            return basePrice + spaceUp + addonTotal;
-          })(),
+          // Same function the summary panel renders from — the two can no
+          // longer disagree. The API recomputes it server-side regardless.
+          total: computeQuote({
+            slotId: slot,
+            spaceId: space,
+            addonIds: selectedAddonIds(addons),
+          }).total,
         }),
       });
       if (res.ok) {
@@ -1033,7 +956,7 @@ export default function BookingPageClient() {
                     gap: 10,
                   }}
                 >
-                  {SPACE_OPTIONS.map((sp) => {
+                  {BOOKABLE_SPACES.map((sp) => {
                     const isSelected = space === sp.id;
                     return (
                       <button
@@ -1130,7 +1053,7 @@ export default function BookingPageClient() {
                               marginTop: 2,
                             }}
                           >
-                            {sp.price}
+                            {eurSigned(sp.upcharge)}
                           </div>
                           <div
                             style={{
@@ -1164,7 +1087,7 @@ export default function BookingPageClient() {
                   }}
                 >
                   {ADDON_OPTIONS.map((addon) => {
-                    const checked = addons[addon.id as keyof AddonState];
+                    const checked = addons[addon.id];
                     return (
                       <label
                         key={addon.id}
@@ -1205,7 +1128,7 @@ export default function BookingPageClient() {
                           type="checkbox"
                           checked={checked}
                           onChange={() =>
-                            toggleAddon(addon.id as keyof AddonState)
+                            toggleAddon(addon.id)
                           }
                           style={{ display: "none" }}
                         />
@@ -1230,7 +1153,7 @@ export default function BookingPageClient() {
                               marginTop: 2,
                             }}
                           >
-                            +{addon.price}€
+                            {eurSigned(rateAmount(addon.rate) ?? 0)}
                           </div>
                         </div>
                       </label>
