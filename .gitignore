@@ -7,6 +7,11 @@ out/
 
 # Build
 dist/
+tsconfig.tsbuildinfo
+
+# Sync scratch — holds signed Notion URLs, which are short-lived credentials
+# and must never reach git history. See scripts/sync-equipment.md.
+scripts/.sync/
 
 # Environment variables
 .env

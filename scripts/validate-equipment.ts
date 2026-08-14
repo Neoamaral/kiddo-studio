@@ -11,7 +11,12 @@
 import fs from "node:fs";
 import path from "node:path";
 import source from "../src/data/equipment.source.json";
-import { EQUIPMENT_BUNDLES, EQUIPMENT_CATALOGUE, itemByCode } from "../src/data/equipment";
+import {
+  EQUIPMENT_BUNDLES,
+  EQUIPMENT_CATALOGUE,
+  MAPPED_CATEGORIES,
+  itemByCode,
+} from "../src/data/equipment";
 import type { EquipmentSource, Rate } from "../src/data/types";
 
 const data = source as EquipmentSource;
@@ -64,6 +69,31 @@ const PUBLIC = path.join(process.cwd(), "public");
 const referencedDirs = new Set<string>();
 let photoTotal = 0;
 
+/**
+ * Case-EXACT existence check.
+ *
+ * fs.existsSync is case-insensitive on Windows: it returns true for
+ * public/images/equipment/CAM-01/01.jpg when the disk actually holds cam-01/.
+ * That is precisely the bug this validator exists to catch — it would pass on
+ * the dev machine and 404 on Vercel's case-sensitive Linux filesystem. Walking
+ * the directory entries and comparing exact strings works on every platform.
+ */
+function existsCaseExact(relFromPublic: string): boolean {
+  const segments = relFromPublic.split("/").filter(Boolean);
+  let dir = PUBLIC;
+  for (let i = 0; i < segments.length; i++) {
+    let entries: string[];
+    try {
+      entries = fs.readdirSync(dir);
+    } catch {
+      return false;
+    }
+    if (!entries.includes(segments[i])) return false;
+    dir = path.join(dir, segments[i]);
+  }
+  return true;
+}
+
 for (const [i, row] of data.rows.entries()) {
   const where = `row ${i} (${row.code || "no code"})`;
   const photos = row.photos ?? [];
@@ -89,8 +119,11 @@ for (const [i, row] of data.rows.entries()) {
     } else {
       referencedDirs.add(expectedDir);
       const abs = path.join(PUBLIC, p.src);
-      if (!fs.existsSync(abs)) {
-        errors.push(`${at}: file not found at public${p.src}`);
+      if (!existsCaseExact(p.src)) {
+        errors.push(
+          `${at}: file not found at public${p.src} (checked case-exactly — a folder ` +
+            `differing only in case would 404 on Vercel)`
+        );
       } else {
         const bytes = fs.statSync(abs).size;
         if (bytes === 0) errors.push(`${at}: file is empty (failed download?)`);
@@ -157,6 +190,17 @@ for (const cat of EQUIPMENT_CATALOGUE) {
     errors.push(`duplicate category code "${cat.code}" (${cat.cat})`);
   }
   catCodes.add(cat.code);
+
+  // A category with no CATEGORY_META entry still renders — buildCatalogue has a
+  // deterministic fallback — but it ships a generic hero label and a filter tab
+  // derived from a blind 3-letter slice. Silent until someone looks at the page.
+  if (!MAPPED_CATEGORIES.has(cat.cat)) {
+    warnings.push(
+      `category "${cat.cat}" has no CATEGORY_META entry — using the fallback ` +
+        `(code "${cat.code}", label "${cat.shortLabel}", "N ${cat.unitNoun}"). ` +
+        `Add one in src/data/equipment.ts.`
+    );
+  }
 }
 
 for (const w of warnings) console.warn(`WARN  ${w}`);

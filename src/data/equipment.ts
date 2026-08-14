@@ -41,6 +41,15 @@ const CATEGORY_META: Record<
   "GRIP & SUPPORT": { code: "GRP", shortLabel: "GRIP", unitNoun: "items" },
 };
 
+/**
+ * Category names that have an explicit CATEGORY_META entry. Anything outside
+ * this set renders via the fallback below — which works, but ships a generic
+ * hero label. validate-equipment.ts warns on it.
+ */
+export const MAPPED_CATEGORIES: ReadonlySet<string> = new Set(
+  Object.keys(CATEGORY_META)
+);
+
 /** "PROP & SET DRESSING" -> "PRO"; de-duplicated with a numeric suffix. */
 function fallbackCode(category: string, taken: Set<string>): string {
   const letters = category.replace(/[^A-Za-z]/g, "").toUpperCase();

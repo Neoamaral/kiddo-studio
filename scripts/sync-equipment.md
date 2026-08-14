@@ -52,9 +52,26 @@ period each row carries.
 
 - **Item codes are user-visible and must be stable.** Never regenerate a code
   that already exists in the JSON. Assign `${catCode}-${nn}` only to new rows.
+  - **Exception, first real sync only.** Every code currently in the JSON is a
+    design-phase placeholder — no row came from the client. Assign all codes
+    fresh, in Notion's row order within each category; do not try to name-match
+    against the placeholders, since a match could only fire by coincidence and a
+    partial match is worse than none (nobody could tell which codes carried
+    invented history). Record it in `_meta.notes`.
+  - **From sync #2 on**, match rows to the previous JSON by `name` (exact, then
+    case/whitespace-insensitive) and reuse the code. New rows get
+    `max(nn in that category) + 1` — never reuse a retired number.
+  - **A rename is a HALT.** Renaming an item in Notion is indistinguishable from
+    "one row deleted, one added", and guessing would mint a new code and orphan
+    that item's photo folder. Ask.
 - **New categories** need an entry in `CATEGORY_META` in `src/data/equipment.ts`
   (code, shortLabel, unitNoun). Without one they still render via the
-  deterministic fallback, but with a generic label.
+  deterministic fallback, but with a generic label — `validate-equipment.ts`
+  warns when that happens. The map key is matched by **identity**: a trailing
+  space or an en-dash where the data has `·` drops silently to the fallback.
+  Pick `code` from the English concept, not a blind slice of a Portuguese label
+  (`"ILUMINAÇÃO"` → `LIT`, not `ILU`) — it is the filter-tab label and the SKU
+  prefix.
 - **Studio tiers are out of scope.** The 40/140/280/700 rates in
   `src/data/pricing.ts` are hand-authored and must not be touched by a sync.
 - **Bundles.** `EQUIPMENT_BUNDLES` references item codes. If the sync removes
@@ -77,15 +94,53 @@ shipping photos incrementally is fine.
 for an hour and then silently show broken images.
 `validate-equipment.ts` fails the build on any `src` starting with `http`.
 
-Download **in the same session** you read the page:
+### The automated flow
+
+Downloading, transcoding, naming and writing `photos[]` is **not** done by hand
+— `scripts/fetch-equipment-photos.mjs` does all of it from a manifest:
 
 ```sh
-mkdir -p public/images/equipment/cam-01
-curl -fL --max-time 60 -o public/images/equipment/cam-01/01.jpg "<signed notion url>"
+# 1. While reading Notion, write the manifest (signed URLs + alt text):
+#    scripts/.sync/photo-manifest.json   — gitignored, see the schema below
+node scripts/fetch-equipment-photos.mjs --dry-run   # manifest ↔ JSON cross-check
+npm run sync:photos                                 # download + transcode + write
 ```
 
-If a download fails, **omit that photo** rather than writing a path to a missing
-file. The empty case is a first-class rendering path.
+The script — not the agent — writes the `photos[]` arrays, because only it knows
+the post-resize dimensions, which downloads actually succeeded, and it derives
+the lowercase path in code so a wrong-case folder is structurally impossible.
+It exits **non-zero on partial success**, deliberately.
+
+Manifest schema (`version: 1`):
+
+```jsonc
+{ "version": 1, "generatedAt": "<ISO UTC>", "notionPageId": "…",
+  "items": [ { "code": "CAM-01", "name": "Sony FX6", "photos": [
+    { "url": "https://…", "fileName": "IMG_4821.jpg",
+      "alt": "Sony FX6 cinema camera body", "caption": "FIG. 01 — BODY" } ] } ] }
+```
+
+The script HALTS on: a code with no matching row, a duplicate code, a
+non-https URL, a duplicate URL within an item, empty alt, >8 photos, a code that
+doesn't lowercase to `[a-z0-9-]+`, or exceeding `--max-total-mb`.
+
+It reports per photo: `EXPIRED` (403/404 — the signed URL aged out; **not**
+retried, since retrying only burns the remaining window), `FETCH` (retried 3×
+with backoff), `FORMAT` (failed the magic-byte sniff — usually an HTML error
+page), `HEIC` (the bundled sharp has no HEIF decoder — ask the client to
+re-export as JPEG).
+
+Transcoding: EXIF orientation is baked in with `.rotate()` **before** resizing
+(otherwise portrait shots resize on the wrong axis), longest edge 1600 with no
+upscaling, then quality 78 → 70 → 62 until the file is under 400 KB. sharp drops
+metadata by default, so EXIF/GPS are stripped for free.
+
+Numbering happens **after** collecting successes, so a failed photo leaves no
+gap. Stale files in an item's folder are pruned **only when that item had zero
+failures** — otherwise a transient 403 would delete last week's good photo.
+
+If a download fails, the photo is simply omitted. The empty case is a
+first-class rendering path.
 
 ### Naming
 
@@ -121,10 +176,18 @@ repeat the item name. `caption` is optional and renders in house style:
 Removing a photo in Notion means deleting **both** the file and the JSON entry.
 The validator warns about image folders no row references.
 
-### Commit separately
+### Commit order — binaries FIRST
 
-Put the binaries in their own commit, apart from the JSON and code changes, so
-`git log` on the data stays readable.
+The validator requires every `src` to exist on disk, and the binaries belong in
+their own commit. Only one order satisfies both:
+
+1. **Commit 1 — binaries only:** `git add public/images/equipment` (explicit
+   path; never `git add -A`). The images are unreferenced at this point, so the
+   validator at most warns about orphan folders.
+2. **Commit 2 — data + code, atomic:** `equipment.source.json`, `equipment.ts`
+   (CATEGORY_META + bundles), this file. Validator green.
+
+Push both together. Every commit in history stays self-consistent.
 
 ## 5. Update `_meta`
 
@@ -135,11 +198,25 @@ replace the placeholder `source` string. If photos changed, also set
 ## 6. Verify
 
 ```sh
-npx tsx scripts/validate-equipment.ts   # codes, rates, bundles, row count,
-                                        # and that every photo exists on disk
-npx tsx scripts/check-quote.ts          # booking maths still consistent
+npm run validate:equipment   # codes, rates, bundles, row count, category
+                             # mapping, and that every photo exists on disk
+                             # (case-EXACTLY — fs.existsSync is case-insensitive
+                             # on Windows and would miss the Vercel 404 trap)
+npm run check:quote          # booking maths still consistent
 npx tsc --noEmit
 npm run build
+
+git ls-files public/images/equipment | grep '[A-Z]'   # must print NOTHING
+```
+
+After deploying, prove the photos actually resolve — this is the only real
+check, since the gallery is client-side and contributes nothing to the built
+HTML:
+
+```sh
+curl -sS -o /dev/null -w '%{http_code} %{content_type}\n' \
+  https://kiddo-studio.vercel.app/images/equipment/<code>/01.jpg
+# expect: 200 image/jpeg
 ```
 
 Then diff the built HTML against the previous build. **Only numbers, item names
