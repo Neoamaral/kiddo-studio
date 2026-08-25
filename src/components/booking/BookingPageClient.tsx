@@ -21,6 +21,7 @@ import {
   ADDON_OPTIONS,
   BOOKING_HORIZON_DAYS,
   BOOKING_LEAD_TIME_DAYS,
+  BOOKING_MIN_NOTICE_MINUTES,
   TIME_SLOTS,
   emptyAddonState,
   selectedAddonIds,
@@ -28,7 +29,7 @@ import {
 } from "@/data/booking";
 import { BOOKABLE_SPACES } from "@/data/spaces";
 import type { DateBounds } from "@/data/availability";
-import { equipmentRemaining, slotHasStarted, slotState } from "@/data/availability";
+import { equipmentRemaining, slotTooSoon, slotState } from "@/data/availability";
 import { computeQuote } from "@/lib/quote";
 import { eurSigned, rateAmount } from "@/lib/money";
 import type { ISODate } from "@/lib/date";
@@ -601,8 +602,8 @@ export default function BookingPageClient() {
                 >
                   {TIME_SLOTS.map((ts) => {
                     const isSelected = slotId === ts.id;
-                    const started =
-                      !!date && nowMs !== null && slotHasStarted(date, ts.id, nowMs);
+                    const tooSoon =
+                      !!date && nowMs !== null && slotTooSoon(date, ts.id, nowMs);
                     const st = date
                       ? slotState(date, ts.id, monthData, nowMs ?? undefined)
                       : "unknown";
@@ -659,7 +660,11 @@ export default function BookingPageClient() {
                             marginTop: 6,
                           }}
                         >
-                          {started ? "Already started" : busy ? "Already booked" : ts.note}
+                          {tooSoon
+                            ? `Needs ${BOOKING_MIN_NOTICE_MINUTES / 60}h notice`
+                            : busy
+                              ? "Already booked"
+                              : ts.note}
                         </span>
                       </button>
                     );

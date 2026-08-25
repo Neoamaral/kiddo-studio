@@ -14,11 +14,21 @@ import type { Addon, TimeSlot } from "./types";
 /**
  * Same-day bookings are allowed (0 = today is bookable).
  *
- * Slots whose start time has already passed are filtered out separately — see
- * slotHasStarted() in src/data/availability.ts. Without that, the morning slot
- * would still be on offer at six in the evening.
+ * The real cutoff is per-slot, not per-day: see BOOKING_MIN_NOTICE_MINUTES.
  */
 export const BOOKING_LEAD_TIME_DAYS = 0;
+
+/**
+ * How long before a slot starts it stops being bookable.
+ *
+ * This is the studio's approval window, not a formality: a request holds
+ * nothing until a human confirms it, so a slot booked ten minutes before it
+ * begins is a slot nobody can realistically approve in time. Two hours.
+ *
+ * Measured in Europe/Lisbon wall clock via zonedInstant, so it stays correct
+ * across daylight saving — see slotTooSoon() in src/data/availability.ts.
+ */
+export const BOOKING_MIN_NOTICE_MINUTES = 120;
 /** How far ahead the calendar lets you go. */
 export const BOOKING_HORIZON_DAYS = 180;
 

@@ -11,7 +11,7 @@
 
 import type { ISODate } from "@/lib/date";
 import { isBetween, zonedInstant } from "@/lib/date";
-import { TIME_SLOTS, slotById } from "./booking";
+import { BOOKING_MIN_NOTICE_MINUTES, TIME_SLOTS, slotById } from "./booking";
 
 export type SlotAvailability = "free" | "busy" | "unknown";
 
@@ -51,20 +51,27 @@ export interface DateBounds {
 }
 
 /**
- * Has this slot already begun?
+ * Is it too late to request this slot?
  *
- * Same-day booking is allowed, so this is what stops the site offering the
- * 08:00 morning slot at six in the evening. Compared as instants via the
- * timezone-aware helper, never by string, so it is correct across DST.
+ * True once the slot starts within BOOKING_MIN_NOTICE_MINUTES — which includes
+ * slots that have already begun. Same-day booking is allowed, so without this
+ * the site would offer the 08:00 morning slot at six in the evening, and would
+ * also accept a request twenty minutes before the shoot that nobody could
+ * approve in time.
  *
- * `nowMs` is passed in rather than read here: the booking page is statically
- * prerendered, and a clock read during render would bake the build time into
- * the shipped HTML.
+ * The comparison is between INSTANTS, resolved through the timezone-aware
+ * helper — Lisbon is UTC+0 in winter and UTC+1 in summer, so comparing wall
+ * clocks or assuming a fixed offset would be an hour wrong for half the year.
+ *
+ * `nowMs` is passed in rather than read here: /booking is statically
+ * prerendered, and a clock read during render would bake build time into the
+ * shipped HTML.
  */
-export function slotHasStarted(date: ISODate, slotId: string, nowMs: number): boolean {
+export function slotTooSoon(date: ISODate, slotId: string, nowMs: number): boolean {
   const slot = slotById(slotId);
   if (!slot) return false;
-  return zonedInstant(date, slot.startLocal) <= nowMs;
+  const startsAt = zonedInstant(date, slot.startLocal);
+  return startsAt - nowMs < BOOKING_MIN_NOTICE_MINUTES * 60_000;
 }
 
 export function slotState(
@@ -73,8 +80,8 @@ export function slotState(
   m: MonthAvailability | null,
   nowMs?: number
 ): SlotAvailability {
-  // A slot that has begun is gone regardless of what the calendar says.
-  if (nowMs !== undefined && slotHasStarted(date, slotId, nowMs)) return "busy";
+  // Too close to start is gone regardless of what the calendar says.
+  if (nowMs !== undefined && slotTooSoon(date, slotId, nowMs)) return "busy";
   if (!m) return "unknown";
   if (m.degraded) return "unknown";
   return m.days[date]?.slots[slotId] ?? "free";
@@ -91,8 +98,8 @@ export function dayState(
   if (!isBetween(date, bounds.min, bounds.max)) return "outOfRange";
 
   const states = TIME_SLOTS.map((s) => slotState(date, s.id, m, nowMs));
-  // Today, once the last slot has begun, there is nothing left to sell — even
-  // though the calendar itself is empty.
+  // Once every slot is inside the notice window there is nothing left to sell
+  // today, even though the calendar itself is empty.
   if (states.every((s) => s === "busy")) return "full";
   if (!m || m.degraded) return "unknown";
   if (states.some((s) => s === "busy")) return "partial";

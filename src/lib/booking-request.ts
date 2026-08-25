@@ -11,8 +11,13 @@
 
 import type { ISODate } from "@/lib/date";
 import { addDays, isBetween, parseISO } from "@/lib/date";
-import { BOOKING_HORIZON_DAYS, BOOKING_LEAD_TIME_DAYS, selectedAddonIds } from "@/data/booking";
-import { slotHasStarted } from "@/data/availability";
+import {
+  BOOKING_HORIZON_DAYS,
+  BOOKING_LEAD_TIME_DAYS,
+  BOOKING_MIN_NOTICE_MINUTES,
+  selectedAddonIds,
+} from "@/data/booking";
+import { slotTooSoon } from "@/data/availability";
 
 export interface BookingRequest {
   name: string;
@@ -73,11 +78,15 @@ export function parseBookingRequest(body: unknown, today: ISODate): ParseResult 
   if (!slotId) return { ok: false, error: "Slot is required" };
   if (!spaceId) return { ok: false, error: "Space is required" };
 
-  // Same-day booking is allowed, so the client can legitimately offer today —
-  // but not a slot that has already begun. The UI hides those; this is what
-  // stops a stale tab, or a direct POST, from booking this morning.
-  if (slotHasStarted(date, slotId, Date.now())) {
-    return { ok: false, error: "That slot has already started" };
+  // Same-day booking is allowed, so today is legitimately on offer — but not a
+  // slot starting inside the approval window. The UI hides those; this is what
+  // stops a stale tab, or a direct POST, from booking one anyway.
+  if (slotTooSoon(date, slotId, Date.now())) {
+    const hours = BOOKING_MIN_NOTICE_MINUTES / 60;
+    return {
+      ok: false,
+      error: `That slot starts too soon — we need at least ${hours} hours to confirm it`,
+    };
   }
 
   // The client sends the add-on state map; ids are validated by computeQuote.
