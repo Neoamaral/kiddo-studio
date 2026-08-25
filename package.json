@@ -10,7 +10,9 @@
     "validate:equipment": "tsx scripts/validate-equipment.ts",
     "check:quote": "tsx scripts/check-quote.ts",
     "sync:photos": "node scripts/fetch-equipment-photos.mjs",
-    "check:dates": "tsx scripts/check-dates.ts"
+    "check:dates": "tsx scripts/check-dates.ts",
+    "gcal:discover": "tsx scripts/gcal-discover.ts",
+    "gcal:smoke": "tsx scripts/gcal-smoke.ts"
   },
   "dependencies": {
     "clsx": "^2.1.1",
