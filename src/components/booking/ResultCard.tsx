@@ -87,23 +87,23 @@ function ActionButton({
 
 export function SuccessCard({
   bookingRef,
-  calendarBlocked,
+  recorded,
 }: {
   bookingRef: string;
   /** False when the calendar write failed or is not configured. */
-  calendarBlocked: boolean;
+  recorded: boolean;
 }) {
   return (
     <div style={{ ...shell, background: kiddoColors.lime, border: `2px solid ${kiddoColors.black}` }}>
       <SmileyFaceIcon variant="drip" width={80} fill={kiddoColors.black} />
-      <div style={heading}>
-        {calendarBlocked ? "YOU'RE BOOKED!" : "REQUEST RECEIVED"}
-      </div>
+      {/* Never "you're booked": the studio confirms with the client before the
+          slot is held, so claiming it here would be false either way. */}
+      <div style={heading}>REQUEST SENT</div>
       <div style={mono}>Ref: {bookingRef}</div>
       <p style={body}>
-        {calendarBlocked
-          ? "Your slot is held. We'll send a confirmation email shortly — see you in the studio!"
-          : "We've got your request and we'll confirm your slot by email within 24 hours."}
+        {recorded
+          ? "We'll check the date and confirm by email — usually within 24 hours. The slot isn't held until we do."
+          : "We've got your request and we'll come back to you by email within 24 hours."}
       </p>
       <ActionButton label="← BACK HOME" href="/" />
     </div>

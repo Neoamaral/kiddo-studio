@@ -19,7 +19,7 @@ export class GCalError extends Error {
 }
 
 async function request<T>(
-  method: "GET" | "POST" | "DELETE",
+  method: "GET" | "POST" | "DELETE" | "PATCH",
   path: string,
   init: { query?: Record<string, string | undefined>; body?: unknown } = {}
 ): Promise<T> {
@@ -69,6 +69,12 @@ export const gcalPost = <T>(
   body: unknown,
   query?: Record<string, string | undefined>
 ) => request<T>("POST", path, { body, query });
+
+export const gcalPatch = <T>(
+  path: string,
+  body: unknown,
+  query?: Record<string, string | undefined>
+) => request<T>("PATCH", path, { body, query });
 
 export const gcalDelete = (path: string, query?: Record<string, string | undefined>) =>
   request<void>("DELETE", path, { query });

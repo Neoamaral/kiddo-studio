@@ -60,7 +60,7 @@ interface BookingFormData {
 type SubmitState =
   | { status: "idle" }
   | { status: "sending" }
-  | { status: "done"; ref: string; calendarBlocked: boolean }
+  | { status: "done"; ref: string; recorded: boolean }
   | { status: "conflict"; message: string; kind: "slot" | "equipment" }
   | { status: "error"; message: string };
 
@@ -223,14 +223,14 @@ export default function BookingPageClient() {
         ref?: string;
         error?: string;
         message?: string;
-        calendarBlocked?: boolean;
+        recorded?: boolean;
       };
 
       if (res.ok && data.ref) {
         setSubmit({
           status: "done",
           ref: data.ref,
-          calendarBlocked: data.calendarBlocked !== false,
+          recorded: data.recorded !== false,
         });
         return;
       }
@@ -856,7 +856,7 @@ export default function BookingPageClient() {
             {/* RIGHT: sticky sidebar */}
             <div style={{ position: "sticky", top: isMobile ? 0 : 88 }}>
               {submit.status === "done" ? (
-                <SuccessCard bookingRef={submit.ref} calendarBlocked={submit.calendarBlocked} />
+                <SuccessCard bookingRef={submit.ref} recorded={submit.recorded} />
               ) : submit.status === "conflict" ? (
                 <ConflictCard
                   message={submit.message}

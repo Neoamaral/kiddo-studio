@@ -1,10 +1,20 @@
 /**
  * Writing bookings into the room calendars.
  *
- * One tentative event per room the product occupies. Tentative is what makes
- * the "hold the slot, the studio confirms by hand" model work — and it really
- * does count as busy in freebusy, which scripts/gcal-smoke.ts asserts rather
- * than assumes.
+ * TWO-STAGE, because the studio confirms with the client before committing:
+ *
+ *   request  ->  transparency "transparent", status "tentative"
+ *                Visible in the calendar as "⏳ PEDIDO", but Google reports it
+ *                as FREE, so it does not block the slot and does not stop
+ *                anyone else booking it. The event is also the storage: this
+ *                project has no database, and the pending booking has to
+ *                survive between the request and the studio's click.
+ *
+ *   confirmed ->  transparency "opaque", status "confirmed"
+ *                Now it blocks, and freebusy reports it busy.
+ *
+ * Only "opaque" counts as busy in freebusy. Getting that backwards would
+ * either block every unconfirmed request or never block anything.
  */
 
 import type { ResourceId } from "@/data/types";
@@ -15,8 +25,8 @@ import type { Quote } from "@/lib/quote";
 import type { ISODate } from "@/lib/date";
 import { formatDateHuman } from "@/lib/date";
 import { eur } from "@/lib/money";
-import { gcalDelete, gcalGet, gcalPost } from "./client";
-import { calendarIdFor } from "./calendars";
+import { gcalDelete, gcalGet, gcalPatch, gcalPost } from "./client";
+import { allCalendarIds, calendarIdFor } from "./calendars";
 
 export interface BookingEventInput {
   ref: string;
@@ -76,16 +86,16 @@ function buildEvent(input: BookingEventInput, resource: ResourceId) {
   if (!slot) throw new Error(`unknown slot ${input.slotId}`);
 
   return {
-    summary: `PENDING · ${resourceLabel(resource).toUpperCase()} · ${input.name}`,
+    summary: `⏳ PEDIDO · ${resourceLabel(resource).toUpperCase()} · ${input.name}`,
     description: describe(input),
     // Wall clock plus IANA zone: Google resolves DST, we never compute an
     // offset. This is why a July 08:00 booking cannot land an hour out.
     start: { dateTime: `${input.date}T${slot.startLocal}:00`, timeZone: "Europe/Lisbon" },
     end: { dateTime: `${input.date}T${slot.endLocal}:00`, timeZone: "Europe/Lisbon" },
     status: "tentative",
-    // Explicit: inheriting "transparent" from a template would silently stop
-    // every booking from blocking anything.
-    transparency: "opaque",
+    // TRANSPARENT on purpose: an unconfirmed request must not hold the slot.
+    // confirmBooking() flips this to "opaque".
+    transparency: "transparent",
     extendedProperties: {
       private: {
         bookingRef: input.ref,
@@ -97,6 +107,10 @@ function buildEvent(input: BookingEventInput, resource: ResourceId) {
         total: String(input.quote.total),
         source: "website",
         equipment: encodeEquipment(input.quote),
+        // Needed by findBooking() to render the confirmation page and to email
+        // the client, without re-parsing the description.
+        name: input.name,
+        email: input.email,
       },
     },
   };
@@ -130,7 +144,7 @@ export interface WriteResult {
 }
 
 /**
- * Create the tentative events.
+ * Create the pending (non-blocking) events.
  *
  * NOT ATOMIC for `both`: the write spans two calendars and Google has no
  * multi-calendar transaction. If the second insert fails we delete the first,
@@ -138,7 +152,7 @@ export interface WriteResult {
  * common case, still racy in the pathological one. That is the strongest
  * argument for eventually keeping our own record of bookings.
  */
-export async function createTentativeBooking(
+export async function createPendingBooking(
   input: BookingEventInput
 ): Promise<WriteResult> {
   const duplicate = await findByIdempotencyKey(input.idempotencyKey, input.date);
@@ -168,5 +182,111 @@ export async function createTentativeBooking(
       });
     }
     throw err;
+  }
+}
+
+
+/* ── Confirm / decline ───────────────────────────────────────────────────── */
+
+export interface PendingBooking {
+  ref: string;
+  date: ISODate;
+  spaceId: string;
+  slotId: string;
+  name: string;
+  email: string;
+  total: string;
+  /** Already confirmed — the studio clicked before, or clicked twice. */
+  confirmed: boolean;
+  events: { calId: string; eventId: string }[];
+  description: string;
+}
+
+/** Every event carrying this booking reference, across both calendars. */
+export async function findBooking(
+  ref: string,
+  date: ISODate
+): Promise<PendingBooking | null> {
+  const cals = Object.values(allCalendarIds());
+  const events: { calId: string; eventId: string }[] = [];
+  let meta: Record<string, string> | undefined;
+  let confirmed = false;
+  let description = "";
+
+  for (const calId of cals) {
+    const res = await gcalGet<{
+      items?: (GEvent & {
+        description?: string;
+        transparency?: string;
+        summary?: string;
+      })[];
+    }>(`/calendars/${encodeURIComponent(calId)}/events`, {
+      privateExtendedProperty: `bookingRef=${ref}`,
+      timeMin: `${date}T00:00:00Z`,
+      timeMax: `${date}T23:59:59Z`,
+      singleEvents: "true",
+    });
+
+    for (const ev of res.items ?? []) {
+      if (ev.status === "cancelled") continue;
+      events.push({ calId, eventId: ev.id });
+      meta ??= ev.extendedProperties?.private;
+      description ||= ev.description ?? "";
+      // Anything already opaque means this booking is live.
+      if (ev.transparency !== "transparent") confirmed = true;
+    }
+  }
+
+  if (!meta || events.length === 0) return null;
+
+  return {
+    ref,
+    date,
+    spaceId: meta.spaceId ?? "",
+    slotId: meta.slotId ?? "",
+    name: meta.name ?? "",
+    email: meta.email ?? "",
+    total: meta.total ?? "0",
+    confirmed,
+    events,
+    description,
+  };
+}
+
+/**
+ * Make the booking real: opaque (so freebusy reports it busy) and confirmed.
+ *
+ * Idempotent — clicking the email link twice is expected, and the second click
+ * simply re-applies the same state.
+ */
+export async function confirmBooking(booking: PendingBooking): Promise<void> {
+  for (const e of booking.events) {
+    await gcalPatch(
+      `/calendars/${encodeURIComponent(e.calId)}/events/${e.eventId}`,
+      {
+        status: "confirmed",
+        transparency: "opaque",
+        summary: await confirmedSummary(e.calId, booking),
+      },
+      { sendUpdates: "none" }
+    );
+  }
+}
+
+async function confirmedSummary(calId: string, booking: PendingBooking): Promise<string> {
+  const ids = allCalendarIds();
+  const resource = (Object.keys(ids) as ResourceId[]).find((r) => ids[r] === calId);
+  const room = resource ? resourceLabel(resource).toUpperCase() : "STUDIO";
+  return `${room} · ${booking.name}`;
+}
+
+/** Remove the request entirely — it never held the slot, so nothing is freed. */
+export async function declineBooking(booking: PendingBooking): Promise<void> {
+  for (const e of booking.events) {
+    await gcalDelete(`/calendars/${encodeURIComponent(e.calId)}/events/${e.eventId}`, {
+      sendUpdates: "none",
+    }).catch(() => {
+      console.error(`[GCAL] could not delete ${e.eventId} while declining ${booking.ref}`);
+    });
   }
 }

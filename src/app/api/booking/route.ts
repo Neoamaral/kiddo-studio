@@ -11,8 +11,9 @@ import { eur } from "@/lib/money";
 import { isCalendarConfigured } from "@/lib/gcal/auth";
 import { hasAllCalendars } from "@/lib/gcal/calendars";
 import { readMonthAvailability } from "@/lib/gcal/availability";
-import { createTentativeBooking } from "@/lib/gcal/events";
+import { createPendingBooking } from "@/lib/gcal/events";
 import { CONFIRM_LIMIT, rateLimited, wrongOrigin } from "@/lib/guard";
+import { confirmUrl } from "@/lib/booking-token";
 
 /** First item whose requested quantity exceeds what is left that day, if any. */
 function equipmentShortage(
@@ -91,7 +92,9 @@ export async function POST(req: NextRequest) {
      * never claim the slot is held. Only a genuine conflict is a hard failure,
      * because that is the one case where proceeding would double-book.
      */
-    let calendarBlocked = false;
+    // "recorded", not "blocked": the request goes in transparent, so it holds
+    // nothing until the studio confirms. See src/lib/gcal/events.ts.
+    let recorded = false;
     if (isCalendarConfigured() && hasAllCalendars()) {
       try {
         // Re-check immediately before writing. This does not close the race —
@@ -116,7 +119,7 @@ export async function POST(req: NextRequest) {
           );
         }
 
-        const written = await createTentativeBooking({
+        const written = await createPendingBooking({
           ref,
           idempotencyKey: r.idempotencyKey,
           date: r.date,
@@ -137,16 +140,16 @@ export async function POST(req: NextRequest) {
             ok: true,
             ref: written.duplicateOfRef,
             total: quote.total,
-            calendarBlocked: true,
+            recorded: true,
           });
         }
-        calendarBlocked = written.ok;
+        recorded = written.ok;
       } catch (err) {
         // Do NOT fail the booking: losing an enquiry is worse than losing the
         // hold, and the email below carries a warning so nobody assumes the
         // slot is blocked.
         console.error("[GCAL] booking write failed", err);
-        calendarBlocked = false;
+        recorded = false;
       }
     }
 
@@ -161,7 +164,7 @@ export async function POST(req: NextRequest) {
       ref,
       ...r,
       serverTotal: quote.total,
-      calendarBlocked,
+      recorded,
       ts: new Date().toISOString(),
     });
 
@@ -193,7 +196,7 @@ export async function POST(req: NextRequest) {
         "Brief:",
         r.brief || "—",
         "",
-        calendarBlocked
+        recorded
           ? "Calendar: slot held (tentative)."
           : "⚠ Calendar: NOT blocked — add this to the studio calendar by hand.",
       ].join("\n");
@@ -222,7 +225,7 @@ export async function POST(req: NextRequest) {
      * email went out, so the booking exists only in this log line. Say so
      * loudly, and tell the customer honestly rather than showing a success card.
      */
-    if (!calendarBlocked && !emailSent) {
+    if (!recorded && !emailSent) {
       console.error(`[BOOKING ${ref}] LOST — no calendar hold and no email`);
       return NextResponse.json(
         {
@@ -233,7 +236,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    return NextResponse.json({ ok: true, ref, total: quote.total, calendarBlocked });
+    return NextResponse.json({ ok: true, ref, total: quote.total, recorded });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });

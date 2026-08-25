@@ -44,6 +44,7 @@ interface EventListResponse {
   items?: {
     status?: string;
     description?: string;
+    transparency?: string;
     start?: { date?: string; dateTime?: string };
     extendedProperties?: { private?: Record<string, string> };
   }[];
@@ -227,6 +228,10 @@ async function readEquipmentRemaining(
       );
       for (const ev of res.items ?? []) {
         if (ev.status === "cancelled") continue;
+        // Unconfirmed requests are transparent: they do not hold the slot, so
+        // they must not hold the gear either. Counting them would let a single
+        // un-actioned request make an item look sold out indefinitely.
+        if (ev.transparency === "transparent") continue;
         const date = eventDate(ev);
         if (!date) continue;
 
