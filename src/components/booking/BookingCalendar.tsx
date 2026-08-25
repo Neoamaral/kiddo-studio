@@ -44,6 +44,8 @@ export interface BookingCalendarProps {
   bounds: DateBounds | null;
   availability: MonthAvailability | null;
   loading: boolean;
+  /** Null until the parent's clock effect runs. */
+  nowMs: number | null;
   /** Viewed month, "YYYY-MM"; lifted so the parent can fetch it. */
   month: string | null;
   onMonthChange: (month: string) => void;
@@ -91,6 +93,7 @@ export default function BookingCalendar({
   bounds,
   availability,
   loading,
+  nowMs,
   month,
   onMonthChange,
 }: BookingCalendarProps) {
@@ -119,7 +122,7 @@ export default function BookingCalendar({
 
   const days: ISODate[] = Array.from({ length: total }, (_, i) => isoDate(y, m1, i + 1));
   const selectableCount = days.filter((d) =>
-    isDaySelectable(dayState(d, availability, bounds))
+    isDaySelectable(dayState(d, availability, bounds, nowMs ?? undefined))
   ).length;
 
   const step = (n: number) => {
@@ -182,7 +185,7 @@ export default function BookingCalendar({
         ))}
 
         {days.map((iso) => {
-          const st = dayState(iso, availability, bounds);
+          const st = dayState(iso, availability, bounds, nowMs ?? undefined);
           const selectable = !loading && isDaySelectable(st);
           const isSelected = value === iso;
           const isToday = iso === bounds.today;

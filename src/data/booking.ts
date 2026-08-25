@@ -11,8 +11,14 @@
 
 import type { Addon, TimeSlot } from "./types";
 
-/** No same-day bookings. */
-export const BOOKING_LEAD_TIME_DAYS = 1;
+/**
+ * Same-day bookings are allowed (0 = today is bookable).
+ *
+ * Slots whose start time has already passed are filtered out separately — see
+ * slotHasStarted() in src/data/availability.ts. Without that, the morning slot
+ * would still be on offer at six in the evening.
+ */
+export const BOOKING_LEAD_TIME_DAYS = 0;
 /** How far ahead the calendar lets you go. */
 export const BOOKING_HORIZON_DAYS = 180;
 

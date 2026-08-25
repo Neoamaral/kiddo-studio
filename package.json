@@ -12,7 +12,8 @@
     "sync:photos": "node scripts/fetch-equipment-photos.mjs",
     "check:dates": "tsx scripts/check-dates.ts",
     "gcal:discover": "tsx scripts/gcal-discover.ts",
-    "gcal:smoke": "tsx scripts/gcal-smoke.ts"
+    "gcal:smoke": "tsx scripts/gcal-smoke.ts",
+    "check:availability": "tsx scripts/check-availability.ts"
   },
   "dependencies": {
     "clsx": "^2.1.1",

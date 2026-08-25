@@ -10,8 +10,8 @@
  */
 
 import type { ISODate } from "@/lib/date";
-import { isBetween } from "@/lib/date";
-import { TIME_SLOTS } from "./booking";
+import { isBetween, zonedInstant } from "@/lib/date";
+import { TIME_SLOTS, slotById } from "./booking";
 
 export type SlotAvailability = "free" | "busy" | "unknown";
 
@@ -50,11 +50,31 @@ export interface DateBounds {
   max: ISODate;
 }
 
+/**
+ * Has this slot already begun?
+ *
+ * Same-day booking is allowed, so this is what stops the site offering the
+ * 08:00 morning slot at six in the evening. Compared as instants via the
+ * timezone-aware helper, never by string, so it is correct across DST.
+ *
+ * `nowMs` is passed in rather than read here: the booking page is statically
+ * prerendered, and a clock read during render would bake the build time into
+ * the shipped HTML.
+ */
+export function slotHasStarted(date: ISODate, slotId: string, nowMs: number): boolean {
+  const slot = slotById(slotId);
+  if (!slot) return false;
+  return zonedInstant(date, slot.startLocal) <= nowMs;
+}
+
 export function slotState(
   date: ISODate,
   slotId: string,
-  m: MonthAvailability | null
+  m: MonthAvailability | null,
+  nowMs?: number
 ): SlotAvailability {
+  // A slot that has begun is gone regardless of what the calendar says.
+  if (nowMs !== undefined && slotHasStarted(date, slotId, nowMs)) return "busy";
   if (!m) return "unknown";
   if (m.degraded) return "unknown";
   return m.days[date]?.slots[slotId] ?? "free";
@@ -63,15 +83,18 @@ export function slotState(
 export function dayState(
   date: ISODate,
   m: MonthAvailability | null,
-  bounds: DateBounds
+  bounds: DateBounds,
+  nowMs?: number
 ): DayState {
   if (date < bounds.today) return "past";
   // Inside the lead time, or past the horizon: real dates, just not bookable.
   if (!isBetween(date, bounds.min, bounds.max)) return "outOfRange";
-  if (!m || m.degraded) return "unknown";
 
-  const states = TIME_SLOTS.map((s) => slotState(date, s.id, m));
+  const states = TIME_SLOTS.map((s) => slotState(date, s.id, m, nowMs));
+  // Today, once the last slot has begun, there is nothing left to sell — even
+  // though the calendar itself is empty.
   if (states.every((s) => s === "busy")) return "full";
+  if (!m || m.degraded) return "unknown";
   if (states.some((s) => s === "busy")) return "partial";
   return "free";
 }

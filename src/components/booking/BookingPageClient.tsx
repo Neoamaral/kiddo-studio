@@ -28,7 +28,7 @@ import {
 } from "@/data/booking";
 import { BOOKABLE_SPACES } from "@/data/spaces";
 import type { DateBounds } from "@/data/availability";
-import { equipmentRemaining, slotState } from "@/data/availability";
+import { equipmentRemaining, slotHasStarted, slotState } from "@/data/availability";
 import { computeQuote } from "@/lib/quote";
 import { eurSigned, rateAmount } from "@/lib/money";
 import type { ISODate } from "@/lib/date";
@@ -114,8 +114,16 @@ export default function BookingPageClient() {
    * build date into the shipped HTML and freeze it for every visitor.
    */
   const [today, setToday] = useState<ISODate | null>(null);
+  const [nowMs, setNowMs] = useState<number | null>(null);
   useEffect(() => {
-    setToday(todayInLisbon());
+    const tick = () => {
+      setToday(todayInLisbon());
+      setNowMs(Date.now());
+    };
+    tick();
+    // Same-day booking is allowed, so a slot can lapse while the page is open.
+    const id = setInterval(tick, 60_000);
+    return () => clearInterval(id);
   }, []);
 
   const bounds: DateBounds | null = useMemo(() => {
@@ -569,6 +577,7 @@ export default function BookingPageClient() {
                   bounds={bounds}
                   availability={monthData}
                   loading={availability.status === "loading"}
+                  nowMs={nowMs}
                   month={month}
                   onMonthChange={setMonth}
                 />
@@ -592,7 +601,11 @@ export default function BookingPageClient() {
                 >
                   {TIME_SLOTS.map((ts) => {
                     const isSelected = slotId === ts.id;
-                    const st = date ? slotState(date, ts.id, monthData) : "unknown";
+                    const started =
+                      !!date && nowMs !== null && slotHasStarted(date, ts.id, nowMs);
+                    const st = date
+                      ? slotState(date, ts.id, monthData, nowMs ?? undefined)
+                      : "unknown";
                     const busy = st === "busy";
                     return (
                       <button
@@ -646,7 +659,7 @@ export default function BookingPageClient() {
                             marginTop: 6,
                           }}
                         >
-                          {busy ? "Already booked" : ts.note}
+                          {started ? "Already started" : busy ? "Already booked" : ts.note}
                         </span>
                       </button>
                     );
