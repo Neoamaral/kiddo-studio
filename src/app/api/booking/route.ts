@@ -165,6 +165,7 @@ export async function POST(req: NextRequest) {
       ts: new Date().toISOString(),
     });
 
+    let emailSent = true;
     if (process.env.RESEND_API_KEY) {
       const resend = new Resend(process.env.RESEND_API_KEY);
       const addonList = quote.addons.length
@@ -197,13 +198,39 @@ export async function POST(req: NextRequest) {
           : "⚠ Calendar: NOT blocked — add this to the studio calendar by hand.",
       ].join("\n");
 
-      await resend.emails.send({
+      // The SDK RESOLVES with { error } for API failures rather than throwing,
+      // so an unverified domain or a bad key would otherwise be invisible: the
+      // booking would report success and nobody would ever be told about it.
+      const sent = await resend.emails.send({
         from: "Kiddo Studio <noreply@kiddostudio.pt>",
         to: ["studio@kiddostudio.pt"],
         replyTo: r.email,
         subject: `[Booking ${ref}] ${space?.label ?? r.spaceId} — ${formatDateHuman(r.date)} — ${r.name}`,
         text,
       });
+      if (sent.error) {
+        console.error(`[BOOKING ${ref}] notification email FAILED`, sent.error);
+        emailSent = false;
+      }
+    } else {
+      console.error(`[BOOKING ${ref}] RESEND_API_KEY unset — nobody was notified`);
+      emailSent = false;
+    }
+
+    /*
+     * The one combination nobody can recover from: the slot is not held AND no
+     * email went out, so the booking exists only in this log line. Say so
+     * loudly, and tell the customer honestly rather than showing a success card.
+     */
+    if (!calendarBlocked && !emailSent) {
+      console.error(`[BOOKING ${ref}] LOST — no calendar hold and no email`);
+      return NextResponse.json(
+        {
+          error:
+            "We couldn't record your booking just now. Please email studio@kiddostudio.pt — sorry about this.",
+        },
+        { status: 502 }
+      );
     }
 
     return NextResponse.json({ ok: true, ref, total: quote.total, calendarBlocked });

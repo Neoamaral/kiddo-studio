@@ -15,7 +15,9 @@ export async function POST(req: NextRequest) {
     // Send email if Resend is configured
     if (process.env.RESEND_API_KEY) {
       const resend = new Resend(process.env.RESEND_API_KEY);
-      await resend.emails.send({
+      // Resolves with { error } instead of throwing — an unverified domain
+      // would otherwise silently swallow every enquiry.
+      const sent = await resend.emails.send({
         from: "Kiddo Studio <noreply@kiddostudio.pt>",
         to: ["studio@kiddostudio.pt"],
         replyTo: email,
