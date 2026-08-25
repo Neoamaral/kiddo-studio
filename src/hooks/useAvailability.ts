@@ -1,15 +1,14 @@
 "use client";
 
 /**
- * Month availability for a space.
+ * Month availability for a space, from /api/availability.
  *
- * PHASE 1 (now): returns an all-free month flagged `degraded`, synchronously
- * and with no network. The UI therefore says "we'll confirm by email" rather
- * than claiming a slot is free when nothing has been checked.
+ * The endpoint fails open: on any upstream problem it returns `degraded: true`
+ * rather than an error, so the only way this hook reaches "error" is a network
+ * failure on our own origin.
  *
- * PHASE 2: swap the body for a fetch of /api/availability with an
- * AbortController and a module-scope cache. No consumer changes — which is the
- * entire reason this hook exists before the integration does.
+ * No component changed when this stopped being a stub — that was the point of
+ * introducing the hook before the integration existed.
  */
 
 import { useEffect, useState } from "react";
@@ -22,6 +21,19 @@ export type AvailabilityState =
   | { status: "ready"; data: MonthAvailability }
   | { status: "error"; message: string };
 
+/** Survives remounts within a page view; a reload is a fresh read. */
+const cache = new Map<string, MonthAvailability>();
+
+export function invalidateAvailability(spaceId?: string) {
+  if (!spaceId) {
+    cache.clear();
+    return;
+  }
+  for (const key of [...cache.keys()]) {
+    if (key.startsWith(`${spaceId}:`)) cache.delete(key);
+  }
+}
+
 export function useAvailability(
   spaceId: string | null,
   month: string | null
@@ -33,11 +45,36 @@ export function useAvailability(
       setState({ status: "idle" });
       return;
     }
-    // Phase 1 stub. emptyMonth() reads the clock, which is why it is called
-    // here in an effect and never during render — /booking is statically
-    // prerendered and a render-path clock read bakes the build date into the
-    // shipped HTML.
-    setState({ status: "ready", data: emptyMonth(spaceId, month, true) });
+
+    const key = `${spaceId}:${month}`;
+    const hit = cache.get(key);
+    if (hit) {
+      setState({ status: "ready", data: hit });
+      return;
+    }
+
+    const ctrl = new AbortController();
+    setState({ status: "loading", month });
+
+    fetch(`/api/availability?space=${encodeURIComponent(spaceId)}&month=${month}`, {
+      signal: ctrl.signal,
+    })
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`availability ${res.status}`);
+        return (await res.json()) as MonthAvailability;
+      })
+      .then((data) => {
+        cache.set(key, data);
+        setState({ status: "ready", data });
+      })
+      .catch((err: unknown) => {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        // Degrade rather than block: an unreachable endpoint must not stop
+        // someone booking. `degraded` makes the UI say so honestly.
+        setState({ status: "ready", data: emptyMonth(spaceId, month, true) });
+      });
+
+    return () => ctrl.abort();
   }, [spaceId, month]);
 
   return state;
