@@ -145,6 +145,9 @@ export interface Addon {
 
 /* ── Spaces ──────────────────────────────────────────────────────────────── */
 
+/** A physical room. `both` is a PRODUCT that occupies two of these. */
+export type ResourceId = "room-cyc" | "room-blk";
+
 export interface StudioSpace {
   id: string;
   label: string;
@@ -154,6 +157,12 @@ export interface StudioSpace {
   upcharge: Euros;
   /** Selectable in the booking flow? (prop room / creative area are not) */
   bookable: boolean;
+  /**
+   * Physical rooms this product occupies. Availability = EVERY listed resource
+   * free; booking writes to every one. This is what makes "book the cyclorama
+   * blocks BOTH but leaves the black box free" fall out with no special case.
+   */
+  resourceIds: readonly ResourceId[];
 }
 
 /* ── Booking ─────────────────────────────────────────────────────────────── */
@@ -161,8 +170,10 @@ export interface StudioSpace {
 export interface TimeSlot {
   id: string;
   label: string;
-  /** Display only, e.g. "08:00 — 12:00". */
-  time: string;
+  /** Local wall clock in Europe/Lisbon, "HH:MM". Machine value. */
+  startLocal: string;
+  /** Local wall clock, "HH:MM", exclusive. */
+  endLocal: string;
   note: string;
   /** Which pricing tier this slot bills at. Kills `slot === "fd" ? 280 : 140`. */
   tierId: TierId;

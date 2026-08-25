@@ -21,6 +21,7 @@ export const SPACES: readonly StudioSpace[] = [
     img: "/images/space-cyclorama.jpg",
     upcharge: 0,
     bookable: true,
+    resourceIds: ["room-cyc"],
   },
   {
     id: "blk",
@@ -29,6 +30,7 @@ export const SPACES: readonly StudioSpace[] = [
     img: "/images/space-black-box.jpg",
     upcharge: 40,
     bookable: true,
+    resourceIds: ["room-blk"],
   },
   {
     id: "both",
@@ -37,6 +39,7 @@ export const SPACES: readonly StudioSpace[] = [
     img: "/images/space-creative.jpg",
     upcharge: 80,
     bookable: true,
+    resourceIds: ["room-cyc", "room-blk"],
   },
 ];
 

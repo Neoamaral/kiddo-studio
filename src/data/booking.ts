@@ -10,54 +10,68 @@
  */
 
 import type { Addon, TimeSlot } from "./types";
-import { EQUIPMENT_BUNDLES, bundleAmount } from "./equipment";
 
+/** No same-day bookings. */
+export const BOOKING_LEAD_TIME_DAYS = 1;
+/** How far ahead the calendar lets you go. */
+export const BOOKING_HORIZON_DAYS = 180;
+
+/**
+ * Times are MACHINE values (local wall clock in Europe/Lisbon) and the display
+ * string is derived from them by slotTimeLabel(). They used to be a single
+ * display string with an em-dash, which a calendar integration would have had
+ * to parse — and PricingTier.hours disagreed with it (it says 8 for a slot that
+ * runs 11 hours). One source of truth, no drift.
+ */
 export const TIME_SLOTS: readonly TimeSlot[] = [
   {
     id: "am",
     label: "MORNING",
-    time: "08:00 — 12:00",
+    startLocal: "08:00",
+    endLocal: "12:00",
     note: "Best light through east windows",
     tierId: "hd",
   },
   {
     id: "pm",
     label: "AFTERNOON",
-    time: "13:00 — 17:00",
+    startLocal: "13:00",
+    endLocal: "17:00",
     note: "Tungsten balanced inside",
     tierId: "hd",
   },
   {
     id: "ev",
     label: "EVENING",
-    time: "18:00 — 22:00",
+    startLocal: "18:00",
+    endLocal: "22:00",
     note: "Dark room only after sunset",
     tierId: "hd",
   },
   {
     id: "fd",
     label: "FULL DAY",
-    time: "08:00 — 19:00",
+    startLocal: "08:00",
+    endLocal: "19:00",
     note: "11 hours · best value",
     tierId: "fd",
   },
 ];
 
+/** "08:00 — 12:00". The em-dash (U+2014) is the house style. */
+export function slotTimeLabel(s: TimeSlot): string {
+  return `${s.startLocal} — ${s.endLocal}`;
+}
+
 export function slotById(id: string | null): TimeSlot | undefined {
   return id ? TIME_SLOTS.find((s) => s.id === id) : undefined;
 }
 
-/** Gear add-ons priced from the equipment catalogue, so they can't sell missing kit. */
-function bundleAddon(bundleId: string, fallbackAmount: number): Addon {
-  const bundle = EQUIPMENT_BUNDLES.find((b) => b.id === bundleId);
-  const amount = bundle ? bundleAmount(bundle) : null;
-  return {
-    id: bundleId === "cam" ? "cam" : "light",
-    label: bundle?.label ?? "Equipment bundle",
-    rate: { kind: "fixed", amount: amount ?? fallbackAmount, per: "day" },
-  };
-}
-
+/**
+ * SERVICES only. The two gear bundles that used to live here (cam 240, light
+ * 180) moved to the equipment step as presets — otherwise a client could add
+ * "Camera bundle" AND the FX6 individually and be charged for the body twice.
+ */
 export const ADDON_OPTIONS: readonly Addon[] = [
   {
     id: "coord",
@@ -69,8 +83,6 @@ export const ADDON_OPTIONS: readonly Addon[] = [
     label: "Makeup station + mirror",
     rate: { kind: "fixed", amount: 30, per: "day" },
   },
-  bundleAddon("cam", 240),
-  bundleAddon("light", 180),
   {
     id: "park",
     label: "Parking (2 cars)",
