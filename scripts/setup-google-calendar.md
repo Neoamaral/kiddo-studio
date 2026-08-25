@@ -41,9 +41,19 @@ In Google Calendar, as the Workspace owner:
    Set **Time zone: (GMT+00:00) Lisbon**. Create.
 2. Same again for `Kiddo — Black Box`.
 3. For each: **Settings → Share with specific people or groups → Add people →**
-   paste the service account email the script printed →
-   permission **"Make changes to events"**.
-   Not "See all event details" — the site has to write, not just read.
+   paste the service account email the script printed → permission
+   **"Make changes and see all event details"**.
+
+   The dropdown has five entries and only that one is right:
+   - *See only free/busy* and *See all event details* are read-only — the site
+     could never block a slot.
+   - *Make changes (see private events as free/busy)* writes fine, but hides
+     the details of events marked private. That breaks the equipment stock
+     count, which reads an `EQUIP:` line out of the description of bookings
+     entered by hand.
+   - *Make changes and manage sharing* is the `owner` role: it would let the
+     service account re-share or **delete the calendar**. It only needs to add
+     and remove events.
 
 That is the whole manual part. **You do not need to copy the Calendar IDs** —
 once a calendar is shared it shows up in the service account's own calendar
