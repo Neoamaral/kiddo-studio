@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { TokenError, verifyBookingToken } from "@/lib/booking-token";
 import { confirmBooking, declineBooking, findBooking } from "@/lib/gcal/events";
+import { purgeAvailability } from "@/lib/gcal/availability";
 import { isCalendarConfigured } from "@/lib/gcal/auth";
 import { hasAllCalendars } from "@/lib/gcal/calendars";
 import { slotById, slotTimeLabel } from "@/data/booking";
@@ -58,10 +59,13 @@ export async function POST(req: NextRequest) {
 
     if (action === "decline") {
       await declineBooking(booking);
+      purgeAvailability();
       return redirect(req, `/booking/confirm?done=declined&ref=${booking.ref}`);
     }
 
     await confirmBooking(booking);
+    // Before the redirect, so the page the studio lands on already reflects it.
+    purgeAvailability();
     await notifyClient(booking);
     return redirect(req, `/booking/confirm?done=confirmed&ref=${booking.ref}`);
   } catch (err) {

@@ -25,8 +25,12 @@ import { ALL_ITEMS } from "@/data/equipment";
 import { resourcesForSpace } from "@/data/resources";
 import type { ISODate } from "@/lib/date";
 import { addDays, daysInMonth, isoDate, parseISO, zonedInstant } from "@/lib/date";
+import { unstable_cache, revalidateTag } from "next/cache";
 import { gcalGet, gcalPost } from "./client";
 import { calendarIdFor } from "./calendars";
+
+/** Everything cached from the calendar hangs off this tag. */
+export const AVAILABILITY_TAG = "availability";
 
 interface BusyInterval {
   start: number;
@@ -259,4 +263,33 @@ async function readEquipmentRemaining(
     }
   }
   return remaining;
+}
+
+
+/**
+ * Cached read, purgeable the instant a booking changes.
+ *
+ * The CDN cannot do this job: a Cache-Control max-age is a promise about time,
+ * and there is no way to take it back when the studio approves a request. That
+ * showed up as 80 seconds of the site still advertising a slot that had just
+ * been confirmed — long enough for a second client to book it and only find
+ * out at the conflict screen.
+ *
+ * So the response itself is uncacheable and the expensive part — the Google
+ * round trip — is cached here instead, keyed by tag. confirm/decline calls
+ * purgeAvailability() and the very next request is fresh.
+ */
+export function readMonthAvailabilityCached(
+  spaceId: string,
+  month: string
+): Promise<MonthAvailability> {
+  return unstable_cache(
+    () => readMonthAvailability(spaceId, month),
+    ["availability", spaceId, month],
+    { tags: [AVAILABILITY_TAG], revalidate: 60 }
+  )();
+}
+
+export function purgeAvailability(): void {
+  revalidateTag(AVAILABILITY_TAG);
 }

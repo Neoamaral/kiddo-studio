@@ -3,7 +3,7 @@ import { emptyMonth } from "@/data/availability";
 import { spaceById } from "@/data/spaces";
 import { isCalendarConfigured } from "@/lib/gcal/auth";
 import { hasAllCalendars } from "@/lib/gcal/calendars";
-import { readMonthAvailability } from "@/lib/gcal/availability";
+import { readMonthAvailabilityCached } from "@/lib/gcal/availability";
 import { READ_LIMIT, rateLimited } from "@/lib/guard";
 
 /**
@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    return json(await readMonthAvailability(spaceId, month));
+    return json(await readMonthAvailabilityCached(spaceId, month));
   } catch (err) {
     console.error("[GCAL] availability read failed", err);
     return json(emptyMonth(spaceId, month, true));
@@ -52,9 +52,12 @@ export async function GET(req: NextRequest) {
 function json(body: unknown) {
   return NextResponse.json(body, {
     headers: {
-      // A slot booked seconds ago can briefly still read as free. That is
-      // acceptable because confirming re-checks against Google before writing.
-      "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+      // Deliberately uncacheable at the edge. A CDN TTL cannot be revoked when
+      // the studio approves a booking, and serving a stale "free" for even a
+      // minute lets a second client take a slot that is already gone. The
+      // Google round trip is cached server-side instead, and purged on
+      // confirm — see readMonthAvailabilityCached.
+      "Cache-Control": "no-store",
     },
   });
 }

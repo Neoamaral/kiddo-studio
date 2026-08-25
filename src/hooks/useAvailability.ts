@@ -21,8 +21,13 @@ export type AvailabilityState =
   | { status: "ready"; data: MonthAvailability }
   | { status: "error"; message: string };
 
-/** Survives remounts within a page view; a reload is a fresh read. */
-const cache = new Map<string, MonthAvailability>();
+/**
+ * Survives remounts within a page view, but not for long: a tab left open
+ * while the studio confirms a booking would otherwise keep offering a slot
+ * that is already gone.
+ */
+const CACHE_TTL_MS = 60_000;
+const cache = new Map<string, { at: number; data: MonthAvailability }>();
 
 export function invalidateAvailability(spaceId?: string) {
   if (!spaceId) {
@@ -48,8 +53,8 @@ export function useAvailability(
 
     const key = `${spaceId}:${month}`;
     const hit = cache.get(key);
-    if (hit) {
-      setState({ status: "ready", data: hit });
+    if (hit && Date.now() - hit.at < CACHE_TTL_MS) {
+      setState({ status: "ready", data: hit.data });
       return;
     }
 
@@ -64,7 +69,7 @@ export function useAvailability(
         return (await res.json()) as MonthAvailability;
       })
       .then((data) => {
-        cache.set(key, data);
+        cache.set(key, { at: Date.now(), data });
         setState({ status: "ready", data });
       })
       .catch((err: unknown) => {

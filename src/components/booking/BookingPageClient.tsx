@@ -16,7 +16,7 @@ import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { HandwrittenWord, kiddoColors } from "@/components/kiddo-assets";
 import { useIsMobile } from "@/hooks/useIsMobile";
-import { useAvailability, availabilityData } from "@/hooks/useAvailability";
+import { useAvailability, availabilityData, invalidateAvailability } from "@/hooks/useAvailability";
 import {
   ADDON_OPTIONS,
   BOOKING_HORIZON_DAYS,
@@ -256,6 +256,9 @@ export default function BookingPageClient() {
   };
 
   const resolveConflict = (kind: "slot" | "equipment") => {
+    // Whatever we were shown is demonstrably out of date — refetch, don't
+    // send the client back to a picker that still offers the taken slot.
+    invalidateAvailability(spaceId);
     if (kind === "equipment") {
       setSubmit({ status: "idle" });
       setActiveStep(stepIndex("equipment"));
