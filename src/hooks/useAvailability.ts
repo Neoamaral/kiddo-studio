@@ -22,11 +22,14 @@ export type AvailabilityState =
   | { status: "error"; message: string };
 
 /**
- * Survives remounts within a page view, but not for long: a tab left open
- * while the studio confirms a booking would otherwise keep offering a slot
- * that is already gone.
+ * Survives remounts within a page view, but only briefly: a tab left open
+ * while a booking is confirmed — or while the studio frees a slot by deleting
+ * the event — would otherwise keep showing what was true when it loaded.
+ *
+ * Short enough that a human never notices it; long enough to absorb flicking
+ * between months and back, which is the only burst worth absorbing.
  */
-const CACHE_TTL_MS = 60_000;
+const CACHE_TTL_MS = 15_000;
 const cache = new Map<string, { at: number; data: MonthAvailability }>();
 
 export function invalidateAvailability(spaceId?: string) {

@@ -270,14 +270,24 @@ async function readEquipmentRemaining(
  * Cached read, purgeable the instant a booking changes.
  *
  * The CDN cannot do this job: a Cache-Control max-age is a promise about time,
- * and there is no way to take it back when the studio approves a request. That
- * showed up as 80 seconds of the site still advertising a slot that had just
- * been confirmed — long enough for a second client to book it and only find
- * out at the conflict screen.
- *
- * So the response itself is uncacheable and the expensive part — the Google
- * round trip — is cached here instead, keyed by tag. confirm/decline calls
+ * and there is no way to take it back when the studio approves a request. So
+ * the response itself is uncacheable and the expensive part — the Google round
+ * trip — is cached here instead, keyed by tag. confirm/decline calls
  * purgeAvailability() and the very next request is fresh.
+ *
+ * WHY THE TTL IS ONLY 10 SECONDS: the tag purge covers changes the site makes
+ * itself, but not changes made by hand in Google Calendar — deleting an event
+ * to free a slot, or adding one to block it. Nothing tells us about those, so
+ * the TTL is the only mechanism, and at 60s the studio would delete an event,
+ * refresh, still see it blocked, and reasonably conclude the site was broken.
+ *
+ * Ten seconds costs at most six Google reads a minute per space+month, which
+ * is nothing against the API's quota, and the burst it still absorbs is the
+ * one that matters: a visitor flicking between months and back.
+ *
+ * The instant version is Google's push notifications (events.watch), but those
+ * require the receiving domain to be verified in the Cloud project — worth
+ * doing on a custom domain, not on *.vercel.app.
  */
 export function readMonthAvailabilityCached(
   spaceId: string,
@@ -286,7 +296,7 @@ export function readMonthAvailabilityCached(
   return unstable_cache(
     () => readMonthAvailability(spaceId, month),
     ["availability", spaceId, month],
-    { tags: [AVAILABILITY_TAG], revalidate: 60 }
+    { tags: [AVAILABILITY_TAG], revalidate: 10 }
   )();
 }
 
