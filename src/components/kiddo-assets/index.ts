@@ -23,3 +23,5 @@ export { kiddoColors } from "./kiddoColors";
 export type { KiddoColor } from "./kiddoColors";
 export { kiddoSizes, kiddoStroke, kiddoRotations, kiddoFonts } from "./kiddoStyles";
 export type { BaseIconProps } from "./kiddoStyles";
+export { StudioMap, STUDIO_MAP_POINTS } from "./StudioMap";
+export type { MapPoint, StudioMapProps } from "./StudioMap";

@@ -9,6 +9,9 @@ import {
   HandDrawnStarIcon,
   CircularBadgeSeal,
   SmallTextArrowLink,
+  StudioMap,
+  STUDIO_MAP_POINTS,
+  kiddoColors,
 } from "@/components/kiddo-assets";
 import { useIsMobile } from "@/hooks/useIsMobile";
 
@@ -561,155 +564,8 @@ export default function ContactSection() {
             FIND US.
           </h2>
         </div>
-        <div style={{ position: "relative", aspectRatio: "21/9", marginTop: 24 }}>
-          <svg
-            viewBox="0 0 800 320"
-            width="100%"
-            height="100%"
-            preserveAspectRatio="xMidYMid slice"
-            style={{ display: "block", background: "#111111" }}
-          >
-            {/* Street grid */}
-            {[40, 80, 120, 160, 200, 240, 280].map((y) => (
-              <line
-                key={y}
-                x1="0"
-                y1={y}
-                x2="800"
-                y2={y}
-                stroke="rgba(255,255,255,0.05)"
-                strokeWidth="1"
-              />
-            ))}
-            {[80, 160, 240, 320, 400, 480, 560, 640, 720].map((x) => (
-              <line
-                key={x}
-                x1={x}
-                y1="0"
-                x2={x}
-                y2="320"
-                stroke="rgba(255,255,255,0.05)"
-                strokeWidth="1"
-              />
-            ))}
-            {/* Main avenues */}
-            <line
-              x1="0"
-              y1="160"
-              x2="800"
-              y2="160"
-              stroke="rgba(255,255,255,0.18)"
-              strokeWidth="2.5"
-            />
-            <line
-              x1="400"
-              y1="0"
-              x2="400"
-              y2="320"
-              stroke="rgba(255,255,255,0.18)"
-              strokeWidth="2.5"
-            />
-            {/* River */}
-            <path
-              d="M 0 260 Q 200 240 400 270 T 800 280 L 800 320 L 0 320 Z"
-              fill="rgba(200,232,32,0.05)"
-            />
-            <path
-              d="M 0 260 Q 200 240 400 270 T 800 280"
-              stroke="rgba(200,232,32,0.4)"
-              strokeWidth="1.5"
-              fill="none"
-            />
-            <text
-              x="600"
-              y="298"
-              fontFamily="var(--font-mono)"
-              fontSize="10"
-              fill="rgba(200,232,32,0.5)"
-            >
-              TEJO →
-            </text>
-            {/* District labels */}
-            <text
-              x="100"
-              y="50"
-              fontFamily="var(--font-mono)"
-              fontSize="11"
-              fill="rgba(255,255,255,0.3)"
-              letterSpacing="2"
-            >
-              BAIRRO ALTO
-            </text>
-            <text
-              x="500"
-              y="80"
-              fontFamily="var(--font-mono)"
-              fontSize="11"
-              fill="rgba(255,255,255,0.3)"
-              letterSpacing="2"
-            >
-              GRAÇA
-            </text>
-            <text
-              x="120"
-              y="220"
-              fontFamily="var(--font-mono)"
-              fontSize="11"
-              fill="rgba(255,255,255,0.3)"
-              letterSpacing="2"
-            >
-              CHIADO
-            </text>
-            {/* Pin */}
-            <g transform="translate(420, 160)">
-              <circle cx="0" cy="0" r="40" fill="#C8E820" opacity="0.12" />
-              <circle cx="0" cy="0" r="20" fill="#C8E820" opacity="0.3" />
-              <circle cx="0" cy="0" r="9" fill="#C8E820" stroke="#fff" strokeWidth="2" />
-              <text
-                x="0"
-                y="-50"
-                textAnchor="middle"
-                fontFamily="var(--font-display)"
-                fontSize="22"
-                fill="#C8E820"
-              >
-                KIDDO
-              </text>
-              <text
-                x="0"
-                y="-32"
-                textAnchor="middle"
-                fontFamily="var(--font-mono)"
-                fontSize="9"
-                fill="rgba(255,255,255,0.6)"
-                letterSpacing="2"
-              >
-                RUA SAUDADE 14
-              </text>
-            </g>
-            {/* Compass */}
-            <g transform="translate(740, 50)">
-              <circle
-                cx="0"
-                cy="0"
-                r="20"
-                stroke="rgba(255,255,255,0.3)"
-                strokeWidth="1"
-                fill="none"
-              />
-              <path d="M 0 -14 L 4 4 L 0 2 L -4 4 Z" fill="rgba(255,255,255,0.6)" />
-              <text
-                x="0"
-                y="-22"
-                textAnchor="middle"
-                fontFamily="var(--font-mono)"
-                fontSize="8"
-                fill="rgba(255,255,255,0.5)"
-              >
-                N
-              </text>
-            </g>
-          </svg>
+        <div style={{ position: "relative", aspectRatio: "16/9", marginTop: 24 }}>
+          <StudioMap />
           {/* Floating address card */}
           <div
             style={{
@@ -764,6 +620,52 @@ export default function ContactSection() {
               <ScribbleArrowIcon variant="diagonal" width={14} height={14} />
             </a>
           </div>
+        </div>
+
+        {/* The same four landmarks as text. On a phone the labels inside the
+            map are far too small to read, and this is also what a screen
+            reader gets instead of one long alt string. */}
+        <div
+          style={{
+            padding: isMobile ? "28px 20px 48px" : "36px 64px 64px",
+            display: "grid",
+            gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)",
+            gap: isMobile ? 18 : 28,
+          }}
+        >
+          {STUDIO_MAP_POINTS.map((point) => (
+            <div key={point.n} style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+              <span
+                style={{
+                  flexShrink: 0,
+                  width: 24,
+                  height: 24,
+                  borderRadius: "50%",
+                  background: kiddoColors.lime,
+                  color: kiddoColors.black,
+                  fontFamily: "var(--font-display)",
+                  fontSize: 14,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                {point.n}
+              </span>
+              <div
+                style={{
+                  fontFamily: "var(--font-display)",
+                  fontSize: 17,
+                  letterSpacing: "0.01em",
+                  color: "#fff",
+                  lineHeight: 1.1,
+                  paddingTop: 3,
+                }}
+              >
+                {point.label}
+              </div>
+            </div>
+          ))}
         </div>
       </section>
     </>

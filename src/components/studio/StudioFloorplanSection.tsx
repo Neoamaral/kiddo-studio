@@ -298,7 +298,7 @@ export default function StudioFloorplanSection() {
               ZONE 03
             </text>
 
-            {/* Prop Room */}
+            {/* Makeup & lounge */}
             <text
               x="206"
               y="335"
@@ -309,7 +309,7 @@ export default function StudioFloorplanSection() {
               textAnchor="middle"
               letterSpacing="3"
             >
-              PROP ROOM
+              MAKEUP
             </text>
             <text
               x="206"
@@ -403,7 +403,7 @@ export default function StudioFloorplanSection() {
             { color: `rgba(200,232,32,0.5)`, label: "CYCLORAMA" },
             { color: `rgba(17,17,17,0.18)`, label: "BLACK BOX" },
             { color: `rgba(255,255,255,0.9)`, label: "CREATIVE AREA", border: true },
-            { color: `rgba(17,17,17,0.25)`, label: "PROP ROOM" },
+            { color: `rgba(17,17,17,0.25)`, label: "MAKEUP & LOUNGE" },
           ].map(({ color, label, border }) => (
             <div
               key={label}

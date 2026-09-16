@@ -7,6 +7,7 @@ import TheSpaceSection from "@/components/home/TheSpaceSection";
 import ProcessSection from "@/components/home/ProcessSection";
 import RecentProjectsSection from "@/components/home/RecentProjectsSection";
 import PricingCtaSection from "@/components/home/PricingCtaSection";
+import FindUsSection from "@/components/home/FindUsSection";
 
 export default function HomePage() {
   return (
@@ -20,6 +21,7 @@ export default function HomePage() {
         <ProcessSection />
         <RecentProjectsSection />
         <PricingCtaSection />
+        <FindUsSection />
       </main>
       <Footer />
     </>

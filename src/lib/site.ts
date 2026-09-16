@@ -12,11 +12,19 @@ export const BOOKING_HREF = "/booking";
 // PRICING_DATA moved to src/data/pricing.ts as HOME_PRICING_ROWS — it duplicated
 // the pricing page's tiers in a third, incompatible shape.
 
+/**
+ * The home "THE SPACE" strip, rendered 3:4 portrait.
+ *
+ * These point at the -tall crops, not the landscape files the studio and
+ * booking pages use: a centre crop of a 3:2 photo keeps only the middle half
+ * of the frame, which threw away the pop-art wall in the creative area — the
+ * one thing that room's own copy names.
+ */
 export const SPACE_ROOMS = [
-  { label: "CYCLORAMA",    src: "/images/space-cyclorama.jpg"  },
-  { label: "CREATIVE AREA", src: "/images/space-creative.jpg"  },
-  { label: "PROP ROOM",    src: "/images/space-prop-room.jpg"  },
-  { label: "BLACK BOX",    src: "/images/space-black-box.jpg"  },
+  { label: "CYCLORAMA",       src: "/images/space-cyclorama-tall.jpg" },
+  { label: "CREATIVE AREA",   src: "/images/space-creative-tall.jpg"  },
+  { label: "MAKEUP & LOUNGE", src: "/images/space-makeup-tall.jpg"    },
+  { label: "BLACK BOX",       src: "/images/space-black-box-tall.jpg" },
 ];
 
 export const PROJECT_IMAGES = [
