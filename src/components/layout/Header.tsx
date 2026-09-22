@@ -39,7 +39,6 @@ export default function Header() {
           >
             BOOK THE STUDIO →
           </Link>
-          <span className="w-2 h-2 rounded-full bg-kiddo-black inline-block" />
         </div>
 
         {/* Mobile hamburger */}

@@ -60,3 +60,29 @@ body {
   .text-balance  { text-wrap: balance; }
   .writing-vert  { writing-mode: vertical-rl; }
 }
+
+/*
+ * Motion policy.
+ *
+ * Every animation on this site is decorative — the spinning seals, the
+ * floating hero smiley, the hover underlines — so under reduced motion we cut
+ * all of them centrally rather than guarding each call site. Opt-in has
+ * already been shown not to hold here: eight CircularBadgeSeal instances ship
+ * `spinning` and not one of them was guarded.
+ *
+ * 0.01ms rather than `animation: none` so animationend/transitionend
+ * listeners still fire, and iteration-count 1 so a loop lands on its final
+ * keyframe. Every keyframe set in this project ends where it starts
+ * (spin: 360deg is 0deg; float-slow: identity), so that final frame is the
+ * element's natural resting position.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
