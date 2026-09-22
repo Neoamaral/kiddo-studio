@@ -1,7 +1,9 @@
 export const NAV_LINKS = [
   { label: "STUDIO",    href: "/studio" },
   { label: "EQUIPMENT", href: "/equipment" },
-  { label: "PROJECTS",  href: "/projects" },
+  // PROJECTS hidden by request. The route itself is gone (src/app/projects/
+  // page.tsx deleted); ProjectsPageClient stays untouched, so bringing it
+  // back is that page file plus this line.
   { label: "PRICING",   href: "/pricing" },
   { label: "ABOUT",     href: "/about" },
   { label: "CONTACT",   href: "/contact" },

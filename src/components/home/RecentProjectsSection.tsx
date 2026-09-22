@@ -1,6 +1,6 @@
 "use client";
 import { useRef, useState } from "react";
-import { BrushUnderline, SmallTextArrowLink, kiddoColors } from "@/components/kiddo-assets";
+import { BrushUnderline, kiddoColors } from "@/components/kiddo-assets";
 import { useIsMobile } from "@/hooks/useIsMobile";
 
 const PHOTOS = [
@@ -107,7 +107,8 @@ export default function RecentProjectsSection() {
               and product unboxing videos. Studio rental + production.
             </p>
           </div>
-          <SmallTextArrowLink label="VIEW ALL PROJECTS" href="/projects" />
+          {/* "VIEW ALL PROJECTS" -> /projects removed with that page. The
+              section stays: it showcases the Neon Ice shoot on its own. */}
         </div>
 
         {/* Scroll strip — photos + videos mixed */}

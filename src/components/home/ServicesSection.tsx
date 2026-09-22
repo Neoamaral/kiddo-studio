@@ -12,8 +12,11 @@ const cards = [
     num: 1,
     title: "PRODUCTION",
     body: "Full production support — from concept to final delivery. Crew, direction, post.",
-    link: "/projects",
-    linkLabel: "VIEW WORK",
+    // Was "VIEW WORK" -> /projects. With that page hidden there is no work to
+    // view, so the card asks for the enquiry instead. Not /booking: card 2
+    // already sends people there.
+    link: "/contact",
+    linkLabel: "GET IN TOUCH",
     icon: <CameraSketchIcon width={100} height={84} showAccent={false} />,
   },
   {

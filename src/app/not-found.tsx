@@ -123,8 +123,10 @@ export default function NotFound() {
                 BACK HOME{" "}
                 <ScribbleArrowIcon variant="right" width={20} height={10} color={"#1A1A1A"} />
               </Link>
+              {/* Was "SEE PROJECTS" -> /projects. Since /projects now lands
+                  HERE, that button sent people round in a loop. */}
               <Link
-                href="/projects"
+                href="/studio"
                 style={{
                   fontFamily: "var(--font-mono)",
                   fontSize: 11,
@@ -137,7 +139,7 @@ export default function NotFound() {
                   textDecoration: "none",
                 }}
               >
-                SEE PROJECTS
+                SEE THE STUDIO
               </Link>
             </div>
           </div>
