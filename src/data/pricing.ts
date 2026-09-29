@@ -1,11 +1,11 @@
 /**
  * Studio rental pricing — Phase 1 "Soft Launch".
  *
- * HAND-AUTHORED. This file is NOT part of the Notion equipment sync: the Notion
- * page covers equipment rental only. A sync must never overwrite these rates.
- * See src/data/equipment.ts for the synced side.
+ * The NUMBERS live in ./pricing.source.json, which the admin panel writes.
+ * This file holds the types, the derived lookups and the helper functions —
+ * everything a panel has no business generating.
  *
- * EVERY AMOUNT HERE EXCLUDES VAT. The rate card quotes "€180 + IVA", so the
+ * EVERY AMOUNT EXCLUDES VAT. The rate card quotes "€180 + IVA", so the
  * numbers are stored exactly as the studio wrote them and VAT is added at the
  * edge — see withVat() below and the booking summary. Storing VAT-inclusive
  * numbers would mean rounding twice and drifting from the studio's own sheet.
@@ -17,83 +17,51 @@ import type {
   DurationId,
   Euros,
   PackageId,
+  PricingSource,
   StudioPackage,
 } from "./types";
+import source from "./pricing.source.json";
+
+/*
+ * The cast mirrors what equipment.ts does with its own source file: a JSON
+ * import widens `kind: "fixed"` to `kind: string`, which no longer satisfies
+ * the Rate union. Anything actually malformed is caught by the validator on
+ * the way in, which is the only place it can be caught at all.
+ */
+const data = source as unknown as PricingSource;
 
 /** Portugal, standard rate. */
-export const VAT_RATE = 0.23;
+export const VAT_RATE = data.vatRate;
 
 /**
  * Standard studio hours. Anything before `open` or after `close` bills at the
  * off-hours overtime rate, whatever the day — which is why every TIME_SLOT in
  * booking.ts sits inside this window.
  */
-export const STUDIO_DAY = { open: "09:00", close: "19:00" } as const;
+export const STUDIO_DAY = data.studioDay;
 
 /**
  * Charged after the fact, never booked in advance: overtime is "any time
  * extending past the agreed wrap time", which nobody can select up front.
  * Euros per hour, excluding VAT.
  */
-export const OVERTIME = {
-  /** Past the agreed wrap, inside standard hours. */
-  standard: 35,
-  /** Before STUDIO_DAY.open or after STUDIO_DAY.close, any day. */
-  offHours: 55,
-} as const;
+export const OVERTIME = data.overtime;
 
 /** Weekend and public-holiday surcharge. */
-export const WEEKEND_MULTIPLIER = 1.2;
+export const WEEKEND_MULTIPLIER = data.weekendMultiplier;
 
 /** "+20% APPLIED" — derived so the badge can never contradict the maths. */
 export const WEEKEND_BADGE = `+${Math.round(
   (WEEKEND_MULTIPLIER - 1) * 100
 )}% APPLIED`;
 
-export const DURATIONS: readonly Duration[] = [
-  { id: "hd", label: "HALF DAY", hours: 4 },
-  { id: "fd", label: "FULL DAY", hours: 10 },
-];
+export const DURATIONS: readonly Duration[] = data.durations;
 
 export const DURATION_BY_ID: Record<DurationId, Duration> = Object.fromEntries(
   DURATIONS.map((d) => [d.id, d])
 ) as Record<DurationId, Duration>;
 
-export const PACKAGES: readonly StudioPackage[] = [
-  {
-    id: "base",
-    name: "BASE HIRE",
-    tag: "PACKAGE 1",
-    rates: { fd: 180, hd: 110 },
-    includes: [
-      "The studio space",
-      "Heavy grip package — stands, sandbags, apple boxes",
-      "3× Amaran Pano 120s, rigged to wash the background",
-      "WiFi · coffee · sound",
-    ],
-    equipmentListUrl:
-      "https://lightroom.adobe.com/shares/52db7e420609440fa469d6087a7dd491",
-    cta: "BOOK BASE HIRE",
-    homeBlurb: "Space, grip and background wash.",
-  },
-  {
-    id: "full",
-    name: "FULL HOUSE",
-    tag: "PACKAGE 2",
-    featured: true,
-    rates: { fd: 260, hd: 160 },
-    includes: [
-      "Everything in Base Hire",
-      "Aputure Storm 400 — key light",
-      "Amaran 200 Bi — fill / hair light",
-      "Our softboxes",
-    ],
-    equipmentListUrl:
-      "https://lightroom.adobe.com/shares/b45c45161cc34b3f802b33105aafc053",
-    cta: "BOOK FULL HOUSE",
-    homeBlurb: "The full lighting kit, ready to shoot.",
-  },
-];
+export const PACKAGES: readonly StudioPackage[] = data.packages;
 
 export const PACKAGE_BY_ID: Record<PackageId, StudioPackage> = Object.fromEntries(
   PACKAGES.map((p) => [p.id, p])
@@ -142,35 +110,7 @@ export function vatOf(net: Euros): Euros {
   return withVat(net) - Math.round(net);
 }
 
-export const ADDONS: readonly Addon[] = [
-  {
-    id: "repaint",
-    label: "EXTRA CYCLORAMA REPAINT",
-    rate: { kind: "fixed", amount: 80, per: "unit" },
-  },
-  {
-    id: "coord",
-    label: "PRODUCTION COORDINATOR",
-    rate: { kind: "fixed", amount: 180, per: "day" },
-  },
-  {
-    id: "mu",
-    label: "MAKEUP STATION + MIRROR",
-    rate: { kind: "fixed", amount: 30, per: "day" },
-  },
-  { id: "greenroom", label: "GREEN ROOM RESET", rate: { kind: "free" } },
-  {
-    id: "bundle",
-    label: "EQUIPMENT BUNDLE",
-    // Entry price for gear packages; the concrete bundles live in equipment.ts.
-    rate: { kind: "from", amount: 200, per: "unit" },
-  },
-  {
-    id: "hold",
-    label: "OVERNIGHT SET HOLD",
-    rate: { kind: "fixed", amount: 100, per: "unit" },
-  },
-];
+export const ADDONS: readonly Addon[] = data.addons;
 
 /**
  * Homepage CTA rows — a teaser, not the full table; "SEE ALL PRICING" carries

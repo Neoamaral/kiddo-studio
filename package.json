@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "npm run validate:equipment && next build",
     "start": "next start",
     "lint": "next lint",
     "validate:equipment": "tsx scripts/validate-equipment.ts",

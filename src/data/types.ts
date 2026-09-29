@@ -2,11 +2,15 @@
  * Shared data types for pricing, equipment and spaces.
  *
  * OWNERSHIP BOUNDARY
- *   - Equipment rental rates come from Notion ("EQUIP RENTAL PRICES — WEB")
- *     via src/data/equipment.source.json. Do not hand-edit those.
- *   - Studio packages, add-ons and spaces are hand-authored in
- *     src/data/pricing.ts and src/data/spaces.ts. A Notion sync must never
- *     clobber them.
+ *   - The equipment catalogue (src/data/equipment.source.json) and the studio
+ *     rate card (src/data/pricing.source.json) are written by the admin panel.
+ *     Edit them there, not by hand — a hand edit is fine but will be overwritten
+ *     by the next save from the panel.
+ *   - Everything else here — spaces, category metadata, bundles, helper
+ *     functions — is code, and changes in code.
+ *
+ * Notion is no longer upstream of the equipment catalogue. The sync never ran
+ * (_meta.syncedAt was always empty) and the panel is the source of truth now.
  */
 
 /** Whole euros. The site has never rendered cents; keep it that way. */
@@ -29,9 +33,9 @@ export type Rate =
 /**
  * One equipment photo.
  *
- * Sourced from Notion but ALWAYS stored locally: Notion file URLs are signed
- * and expire in about an hour, so hotlinking one would break the page
- * silently. See scripts/sync-equipment.md.
+ * ALWAYS stored in the repository, never hot-linked: an upload URL from any
+ * external service is signed and expires, which would break the page silently
+ * some time after it looked fine.
  */
 export interface EquipmentPhoto {
   /** e.g. "/images/equipment/cam-01/01.jpg". Lowercase; never an http(s) URL. */
@@ -49,7 +53,7 @@ export interface EquipmentPhoto {
 }
 
 export interface EquipmentItem {
-  /** User-visible SKU, e.g. "CAM-01". Stable across Notion syncs. */
+  /** User-visible SKU, e.g. "CAM-01". Stable; the photo folder derives from it. */
   code: string;
   name: string;
   spec: string;
@@ -85,7 +89,7 @@ export interface EquipmentBundle {
   rate?: Rate;
 }
 
-/** One flat row as transcribed from Notion. */
+/** One flat row of the catalogue. Flat so the shape survives re-grouping. */
 export interface EquipmentSourceRow {
   code: string;
   category: string;
@@ -94,7 +98,7 @@ export interface EquipmentSourceRow {
   rate: Rate;
   inStock: number;
   hot?: boolean;
-  /** Original Notion cell text — keeps the price parse auditable in review. */
+  /** Original imported text, when a row came from elsewhere. Kept for audit. */
   sourceRaw?: string;
   photos?: EquipmentPhoto[];
   description?: string;
@@ -159,6 +163,32 @@ export interface Addon {
   id: string;
   label: string;
   rate: Rate;
+}
+
+/**
+ * The studio rate card as stored on disk.
+ *
+ * Split out of pricing.ts so the admin panel has something it can safely
+ * write: that file also holds helper FUNCTIONS, and no panel should be
+ * generating TypeScript.
+ */
+export interface PricingSource {
+  _meta: {
+    source: string;
+    /** ISO instant of the last save. */
+    updatedAt: string;
+  };
+  /** 0.23 for Portugal's standard rate. */
+  vatRate: number;
+  /** 1.2 = +20% on weekends and public holidays. */
+  weekendMultiplier: number;
+  /** Standard hours, "HH:MM". Outside these, off-hours overtime applies. */
+  studioDay: { open: string; close: string };
+  /** Euros per hour, excluding VAT. */
+  overtime: { standard: Euros; offHours: Euros };
+  durations: Duration[];
+  packages: StudioPackage[];
+  addons: Addon[];
 }
 
 /* ── Spaces ──────────────────────────────────────────────────────────────── */

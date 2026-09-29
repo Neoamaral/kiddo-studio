@@ -1,0 +1,121 @@
+{
+  "_meta": {
+    "source": "Studio rate card — Phase 1 'Soft Launch'. Written by the admin panel.",
+    "updatedAt": ""
+  },
+  "vatRate": 0.23,
+  "weekendMultiplier": 1.2,
+  "studioDay": {
+    "open": "09:00",
+    "close": "19:00"
+  },
+  "overtime": {
+    "standard": 35,
+    "offHours": 55
+  },
+  "durations": [
+    {
+      "id": "hd",
+      "label": "HALF DAY",
+      "hours": 4
+    },
+    {
+      "id": "fd",
+      "label": "FULL DAY",
+      "hours": 10
+    }
+  ],
+  "packages": [
+    {
+      "id": "base",
+      "name": "BASE HIRE",
+      "tag": "PACKAGE 1",
+      "rates": {
+        "fd": 180,
+        "hd": 110
+      },
+      "includes": [
+        "The studio space",
+        "Heavy grip package — stands, sandbags, apple boxes",
+        "3× Amaran Pano 120s, rigged to wash the background",
+        "WiFi · coffee · sound"
+      ],
+      "equipmentListUrl": "https://lightroom.adobe.com/shares/52db7e420609440fa469d6087a7dd491",
+      "cta": "BOOK BASE HIRE",
+      "homeBlurb": "Space, grip and background wash."
+    },
+    {
+      "id": "full",
+      "name": "FULL HOUSE",
+      "tag": "PACKAGE 2",
+      "featured": true,
+      "rates": {
+        "fd": 260,
+        "hd": 160
+      },
+      "includes": [
+        "Everything in Base Hire",
+        "Aputure Storm 400 — key light",
+        "Amaran 200 Bi — fill / hair light",
+        "Our softboxes"
+      ],
+      "equipmentListUrl": "https://lightroom.adobe.com/shares/b45c45161cc34b3f802b33105aafc053",
+      "cta": "BOOK FULL HOUSE",
+      "homeBlurb": "The full lighting kit, ready to shoot."
+    }
+  ],
+  "addons": [
+    {
+      "id": "repaint",
+      "label": "EXTRA CYCLORAMA REPAINT",
+      "rate": {
+        "kind": "fixed",
+        "amount": 80,
+        "per": "unit"
+      }
+    },
+    {
+      "id": "coord",
+      "label": "PRODUCTION COORDINATOR",
+      "rate": {
+        "kind": "fixed",
+        "amount": 180,
+        "per": "day"
+      }
+    },
+    {
+      "id": "mu",
+      "label": "MAKEUP STATION + MIRROR",
+      "rate": {
+        "kind": "fixed",
+        "amount": 30,
+        "per": "day"
+      }
+    },
+    {
+      "id": "greenroom",
+      "label": "GREEN ROOM RESET",
+      "rate": {
+        "kind": "free"
+      }
+    },
+    {
+      "id": "bundle",
+      "label": "EQUIPMENT BUNDLE",
+      "rate": {
+        "kind": "from",
+        "amount": 200,
+        "per": "unit"
+      }
+    },
+    {
+      "id": "hold",
+      "label": "OVERNIGHT SET HOLD",
+      "rate": {
+        "kind": "fixed",
+        "amount": 100,
+        "per": "unit"
+      }
+    }
+  ]
+}
