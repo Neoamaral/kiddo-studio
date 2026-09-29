@@ -3,9 +3,9 @@
 /**
  * The equipment editor.
  *
- * Holds the whole catalogue in state and saves it as one file, because that is
- * what it is: a single JSON document in the repository. Per-item saves would
- * mean one commit each and a rebuild each.
+ * Holds the whole catalogue in state and saves it as one document, because
+ * that is what it is. Per-item saves would mean one write and one cache purge
+ * each, for no gain.
  *
  * Photos are the exception — they are separate files, uploaded one at a time,
  * and always BEFORE the row that references them is saved. See the photo route
@@ -23,7 +23,10 @@ const MAX_EDGE = 1600;
 
 interface Loaded {
   rows: EquipmentSourceRow[];
-  sha: string | null;
+  /** Sent back on save so two editors cannot silently overwrite each other. */
+  version: string;
+  /** Nothing saved yet — this is what shipped with the site. */
+  seeded: boolean;
   readOnly: boolean;
   lockedCodes: string[];
   categories: string[];
@@ -32,7 +35,7 @@ interface Loaded {
 type Status =
   | { kind: "idle" }
   | { kind: "saving" }
-  | { kind: "saved"; commit: string }
+  | { kind: "saved" }
   | { kind: "error"; message: string; details?: string[] };
 
 const blankRow = (): EquipmentSourceRow => ({
@@ -116,25 +119,24 @@ export default function EquipmentAdmin() {
   const locked = new Set(data?.lockedCodes ?? []);
 
   async function save() {
-    if (!data?.sha) return;
+    if (!data) return;
     setStatus({ kind: "saving" });
     const res = await fetch("/api/admin/equipment", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ rows, sha: data.sha }),
+      body: JSON.stringify({ rows, version: data.version }),
     });
     const body = (await res.json().catch(() => ({}))) as {
       error?: string;
       errors?: string[];
-      commit?: string;
     };
     if (!res.ok) {
       setStatus({ kind: "error", message: body.error ?? "Save failed", details: body.errors });
       return;
     }
-    setStatus({ kind: "saved", commit: (body.commit ?? "").slice(0, 7) });
+    setStatus({ kind: "saved" });
     setDirty(false);
-    // Pick up the new sha, or the next save conflicts with our own commit.
+    // Pick up the new version, or the next save conflicts with our own write.
     void load();
   }
 
@@ -174,15 +176,14 @@ export default function EquipmentAdmin() {
 
       {data.readOnly && (
         <Banner tone="info">
-          GITHUB_TOKEN is not set, so nothing can be saved. The catalogue below is
-          the one bundled with this deployment.
+          Storage is not connected, so nothing can be saved. The catalogue below
+          is the one that shipped with the site.
         </Banner>
       )}
 
       {status.kind === "saved" && (
         <Banner tone="ok">
-          Saved as commit {status.commit}. The site rebuilds itself — the change is
-          live in a minute or so.
+          Saved. The change is live on the site now.
         </Banner>
       )}
 

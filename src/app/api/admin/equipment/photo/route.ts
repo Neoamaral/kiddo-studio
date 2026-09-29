@@ -1,21 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin/session";
-import { photoPath, publicSrc } from "@/lib/admin/catalogue";
-import { GitHubError, readFile, writeFile, deleteFile } from "@/lib/admin/github";
+import { StoreError, deletePhoto, putPhoto } from "@/lib/admin/store";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Uploads one photo and returns the src to store on the row.
+ * Uploads one photo and returns the URL to store on the row.
  *
- * ONLY the file. The row that references it is saved separately, by the
- * catalogue route, and the ORDER MATTERS: file first, row second. The other
- * way round leaves the catalogue pointing at a file that does not exist, and
- * the validator fails the build — the site would freeze on the last good
- * deployment until someone noticed.
- *
- * The reverse failure is harmless by comparison: a file nobody references is
- * a warning, not an error.
+ * ONLY the file. The row that references it is saved separately, and the ORDER
+ * MATTERS: file first, row second. The other way round leaves the catalogue
+ * pointing at something that does not exist. A file nobody references is
+ * harmless by comparison.
  */
 
 /** After the browser has resized it. A 1600px JPEG lands far below this. */
@@ -39,7 +34,7 @@ export async function POST(req: NextRequest) {
   }
 
   const code = typeof body.code === "string" ? body.code.trim().toUpperCase() : "";
-  // The code becomes a directory name, so it may only ever be a plain SKU.
+  // The code becomes part of the stored path, so it may only ever be a plain SKU.
   if (!/^[A-Z0-9][A-Z0-9-]{0,39}$/.test(code)) {
     return NextResponse.json({ error: "Invalid item code" }, { status: 400 });
   }
@@ -73,24 +68,11 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const path = photoPath(code, index, ext);
-
   try {
-    // Replacing an existing photo needs its sha; creating one must not send it.
-    const existing = await readFile(path).catch(() => null);
-    await writeFile({
-      path,
-      content: bytes,
-      message: `admin: photo ${index} for ${code}`,
-      ...(existing ? { sha: existing.sha } : {}),
-    });
-    return NextResponse.json({ ok: true, src: publicSrc(path) });
+    const url = await putPhoto(code, index, bytes, match[1], ext);
+    return NextResponse.json({ ok: true, src: url });
   } catch (err) {
-    if (err instanceof GitHubError) {
-      return NextResponse.json({ error: err.message }, { status: err.status });
-    }
-    console.error("[ADMIN] photo upload failed", err);
-    return NextResponse.json({ error: "Upload failed" }, { status: 500 });
+    return fail(err, "Upload failed");
   }
 }
 
@@ -105,21 +87,23 @@ export async function DELETE(req: NextRequest) {
   if (!auth.ok) return auth.response;
 
   const src = req.nextUrl.searchParams.get("src") ?? "";
-  if (!/^\/images\/equipment\/[a-z0-9-]+\/\d{2}\.(jpg|png|webp)$/.test(src)) {
-    return NextResponse.json({ error: "Invalid photo path" }, { status: 400 });
+  // Only ever our own store, and only a path this route could have written.
+  if (!/^https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com\/equipment\/[a-z0-9-]+\/\d{2}\.(jpg|png|webp)$/.test(src)) {
+    return NextResponse.json({ error: "Invalid photo URL" }, { status: 400 });
   }
-  const path = `public${src}`;
 
   try {
-    const existing = await readFile(path);
-    if (!existing) return NextResponse.json({ ok: true });
-    await deleteFile({ path, sha: existing.sha, message: `admin: remove ${src}` });
+    await deletePhoto(src);
     return NextResponse.json({ ok: true });
   } catch (err) {
-    if (err instanceof GitHubError) {
-      return NextResponse.json({ error: err.message }, { status: err.status });
-    }
-    console.error("[ADMIN] photo delete failed", err);
-    return NextResponse.json({ error: "Delete failed" }, { status: 500 });
+    return fail(err, "Delete failed");
   }
+}
+
+function fail(err: unknown, fallback: string): NextResponse {
+  if (err instanceof StoreError) {
+    return NextResponse.json({ error: err.message }, { status: err.status });
+  }
+  console.error(`[ADMIN] ${fallback}`, err);
+  return NextResponse.json({ error: fallback }, { status: 500 });
 }

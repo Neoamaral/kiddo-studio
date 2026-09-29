@@ -28,7 +28,9 @@ import {
   slotTimeLabel,
 } from "@/data/booking";
 import { BOOKABLE_SPACES } from "@/data/spaces";
-import { PACKAGES, packageById } from "@/data/pricing";
+import { packageById } from "@/data/pricing";
+import type { PricingView } from "@/data/pricing";
+import type { CatalogueView } from "@/data/equipment";
 import type { DateBounds } from "@/data/availability";
 import { equipmentRemaining, slotTooSoon, slotState } from "@/data/availability";
 import { computeQuote } from "@/lib/quote";
@@ -89,7 +91,14 @@ const fieldStyle: React.CSSProperties = {
   outline: "none",
 };
 
-export default function BookingPageClient() {
+export default function BookingPageClient({
+  pricing,
+  catalogue,
+}: {
+  /** Both arrive from the page. Editable data must never be a module import. */
+  pricing: PricingView;
+  catalogue: CatalogueView;
+}) {
   const isMobile = useIsMobile();
 
   const [activeStep, setActiveStep] = useState(0);
@@ -170,8 +179,13 @@ export default function BookingPageClient() {
         addonIds: selectedAddonIds(addons),
         equipment,
         bundleIds,
+      }, {
+        packages: pricing.packages,
+        items: catalogue.allItems,
+        vatRate: pricing.vatRate,
+        weekendMultiplier: pricing.weekendMultiplier,
       }),
-    [slotId, spaceId, packageId, date, addons, equipment, bundleIds]
+    [slotId, spaceId, packageId, date, addons, equipment, bundleIds, pricing, catalogue]
   );
 
   /* ── Setters that invalidate downstream choices ────────────────────────── */
@@ -301,7 +315,7 @@ export default function BookingPageClient() {
 
   const summaries: Record<string, string | undefined> = {
     space: spaceObj?.label,
-    package: packageById(packageId)?.name,
+    package: packageById(pricing.packages, packageId)?.name,
     date: date ? formatDateHuman(date) : undefined,
     slot: slotObj?.label,
     addons: addonCount ? `${addonCount} SELECTED` : "NONE",
@@ -593,7 +607,7 @@ export default function BookingPageClient() {
                     gap: 10,
                   }}
                 >
-                  {PACKAGES.map((pk) => {
+                  {pricing.packages.map((pk) => {
                     const isSelected = packageId === pk.id;
                     return (
                       <button
@@ -882,6 +896,7 @@ export default function BookingPageClient() {
                 onOpen={() => goTo(5)}
               >
                 <EquipmentPicker
+                  catalogue={catalogue}
                   value={equipment}
                   onChange={setEquipment}
                   bundleIds={bundleIds}
@@ -1004,6 +1019,8 @@ export default function BookingPageClient() {
                 />
               ) : (
                 <BookingSummary
+                  vatRate={pricing.vatRate}
+                  weekendBadge={pricing.weekendBadge}
                   date={date}
                   slotId={slotId}
                   spaceId={spaceId}

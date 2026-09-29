@@ -3,9 +3,9 @@
 /**
  * The studio rate card editor.
  *
- * Edits the whole document and saves it in one commit, like the catalogue: it
- * is one JSON file, and the numbers in it only make sense together — a package
- * price and the VAT rate that will be applied to it are not separate facts.
+ * Edits the whole document and saves it in one write, like the catalogue: the
+ * numbers only make sense together — a package price and the VAT rate applied
+ * to it are not separate facts.
  */
 
 import { useCallback, useEffect, useState } from "react";
@@ -15,12 +15,12 @@ import { Banner, Button, Label, field, mono } from "./ui";
 type Status =
   | { kind: "idle" }
   | { kind: "saving" }
-  | { kind: "saved"; commit: string }
+  | { kind: "saved" }
   | { kind: "error"; message: string; details?: string[] };
 
 export default function PricingAdmin() {
   const [data, setData] = useState<PricingSource | null>(null);
-  const [sha, setSha] = useState<string | null>(null);
+  const [version, setVersion] = useState("");
   const [readOnly, setReadOnly] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
@@ -33,9 +33,13 @@ export default function PricingAdmin() {
       setLoadError(body.error ?? "Could not load the rate card");
       return;
     }
-    const body = (await res.json()) as { data: PricingSource; sha: string | null; readOnly: boolean };
+    const body = (await res.json()) as {
+      data: PricingSource;
+      version: string;
+      readOnly: boolean;
+    };
     setData(body.data);
-    setSha(body.sha);
+    setVersion(body.version);
     setReadOnly(body.readOnly);
     setDirty(false);
   }, []);
@@ -50,23 +54,22 @@ export default function PricingAdmin() {
   };
 
   async function save() {
-    if (!data || !sha) return;
+    if (!data) return;
     setStatus({ kind: "saving" });
     const res = await fetch("/api/admin/pricing", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ data, sha }),
+      body: JSON.stringify({ data, version }),
     });
     const body = (await res.json().catch(() => ({}))) as {
       error?: string;
       errors?: string[];
-      commit?: string;
     };
     if (!res.ok) {
       setStatus({ kind: "error", message: body.error ?? "Save failed", details: body.errors });
       return;
     }
-    setStatus({ kind: "saved", commit: (body.commit ?? "").slice(0, 7) });
+    setStatus({ kind: "saved" });
     setDirty(false);
     void load();
   }
@@ -100,14 +103,13 @@ export default function PricingAdmin() {
 
       {readOnly && (
         <Banner tone="info">
-          GITHUB_TOKEN is not set, so nothing can be saved. These are the rates
-          bundled with this deployment.
+          Storage is not connected, so nothing can be saved. These are the rates
+          that shipped with the site.
         </Banner>
       )}
       {status.kind === "saved" && (
         <Banner tone="ok">
-          Saved as commit {status.commit}. The site rebuilds itself — live in a
-          minute or so.
+          Saved. The change is live on the site now.
         </Banner>
       )}
       {status.kind === "error" && (

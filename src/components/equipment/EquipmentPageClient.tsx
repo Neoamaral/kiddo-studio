@@ -10,13 +10,7 @@ import {
 } from "@/components/kiddo-assets";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import type { EquipmentCategory, EquipmentItem } from "@/data/types";
-import {
-  CATALOGUE_STRAPLINE,
-  CATEGORY_SUMMARY,
-  EQUIPMENT_CATALOGUE,
-  FILTER_TABS,
-  type FilterTab,
-} from "@/data/equipment";
+import type { CatalogueView, FilterTab } from "@/data/equipment";
 import {
   HotBadge,
   ItemPrice,
@@ -335,7 +329,7 @@ function CategoryChapter({
 
 /* ─── Section 1: EqCatalogCover ─────────────────────────────────────────── */
 
-function EqCatalogCover() {
+function EqCatalogCover({ catalogue }: { catalogue: CatalogueView }) {
   const isMobile = useIsMobile();
   return (
     <section
@@ -386,7 +380,7 @@ function EqCatalogCover() {
         <span style={{ ...monoXsStyle, color: "rgba(0,0,0,0.5)" }}>KIDDO STUDIO</span>
         <span style={{ ...monoXsStyle, color: "rgba(0,0,0,0.5)" }}>EST. 2023 · LISBON</span>
         <span style={{ ...monoXsStyle, color: "rgba(0,0,0,0.5)" }}>CATALOGUE VOL. 1</span>
-        <span style={{ ...monoXsStyle, color: "rgba(0,0,0,0.5)" }}>{CATALOGUE_STRAPLINE}</span>
+        <span style={{ ...monoXsStyle, color: "rgba(0,0,0,0.5)" }}>{catalogue.strapline}</span>
       </div>
 
       {/* Main content */}
@@ -443,7 +437,7 @@ function EqCatalogCover() {
               borderTop: `1px solid rgba(0,0,0,0.12)`,
             }}
           >
-            {CATEGORY_SUMMARY.map((d) => (
+            {catalogue.summary.map((d) => (
               <div key={d.label} style={{ minWidth: 80 }}>
                 <div style={{ ...monoXsStyle, color: "rgba(0,0,0,0.35)", marginBottom: 4 }}>
                   {d.label}
@@ -555,9 +549,11 @@ function EqCatalogCover() {
 /* ─── Section 2: EqStickyToolbar ────────────────────────────────────────── */
 
 function EqStickyToolbar({
+  filterTabs,
   active,
   onSelect,
 }: {
+  filterTabs: readonly string[];
   active: FilterTab;
   onSelect: (tab: FilterTab) => void;
 }) {
@@ -596,7 +592,7 @@ function EqStickyToolbar({
             scrollbarWidth: "none",
           }}
         >
-          {FILTER_TABS.map((tab) => {
+          {filterTabs.map((tab) => {
             const isActive = active === tab;
             return (
               <button
@@ -633,16 +629,18 @@ function EqStickyToolbar({
 /* ─── Section 3: EqInventory ─────────────────────────────────────────────── */
 
 function EqInventory({
+  categories,
   activeFilter,
   onOpen,
 }: {
+  categories: readonly EquipmentCategory[];
   activeFilter: FilterTab;
   onOpen: (item: EquipmentItem) => void;
 }) {
   const visibleCategories =
     activeFilter === "ALL"
-      ? EQUIPMENT_CATALOGUE
-      : EQUIPMENT_CATALOGUE.filter((c) => c.code === activeFilter);
+      ? categories
+      : categories.filter((c) => c.code === activeFilter);
 
   return (
     <section
@@ -658,7 +656,7 @@ function EqInventory({
           <CategoryChapter
             key={category.code}
             category={category}
-            index={EQUIPMENT_CATALOGUE.indexOf(category)}
+            index={categories.indexOf(category)}
             onOpen={onOpen}
           />
         ))}
@@ -812,7 +810,10 @@ function EqCantFindIt() {
 
 /* ─── Main Page Component ────────────────────────────────────────────────── */
 
-export default function EquipmentPageClient() {
+export default function EquipmentPageClient({ catalogue }: { catalogue: CatalogueView }) {
+  // From the page rather than a module import: the catalogue is editable, and
+  // a build-time import would show whatever was true at the last deployment.
+
   const isMobile = useIsMobile();
   const [activeFilter, setActiveFilter] = useState<FilterTab>("ALL");
   // One modal for the whole page. Per-row state would mount 22 of them, each
@@ -830,10 +831,18 @@ export default function EquipmentPageClient() {
 
   return (
     <main>
-      <EqCatalogCover />
-      <EqStickyToolbar active={activeFilter} onSelect={handleFilterSelect} />
+      <EqCatalogCover catalogue={catalogue} />
+      <EqStickyToolbar
+        filterTabs={catalogue.filterTabs}
+        active={activeFilter}
+        onSelect={handleFilterSelect}
+      />
       <div id="eq-inventory">
-        <EqInventory activeFilter={activeFilter} onOpen={setOpenItem} />
+        <EqInventory
+          categories={catalogue.categories}
+          activeFilter={activeFilter}
+          onOpen={setOpenItem}
+        />
       </div>
       <EqCantFindIt />
       <EquipmentDetailModal item={openItem} onClose={() => setOpenItem(null)} />

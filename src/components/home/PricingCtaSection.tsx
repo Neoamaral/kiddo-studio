@@ -9,9 +9,14 @@ import {
   kiddoColors,
 } from "@/components/kiddo-assets";
 import { BOOKING_HREF } from "@/lib/site";
-import { HOME_PRICING_ROWS } from "@/data/pricing";
+import type { PricingView } from "@/data/pricing";
 
-export default function PricingCtaSection() {
+export default function PricingCtaSection({
+  rows,
+}: {
+  /** Passed from the page: the rate card is editable and must not be baked in. */
+  rows: PricingView["homeRows"];
+}) {
   return (
     <section className="overflow-hidden">
       <div className="grid grid-cols-1 lg:grid-cols-[2fr_3fr_2fr]">
@@ -51,7 +56,7 @@ export default function PricingCtaSection() {
           <p className="font-mono text-[9px] tracking-[0.25em] text-black/40 uppercase mb-2">
             PRICING
           </p>
-          {HOME_PRICING_ROWS.map((row) => (
+          {rows.map((row) => (
             <div key={row.title} className="py-6 flex items-center gap-4">
               <div className="flex flex-col gap-1 flex-1">
                 <span className="font-mono text-[10px] tracking-widest uppercase text-black/50">

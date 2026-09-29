@@ -6,7 +6,8 @@ import { bookingRef } from "@/lib/ref";
 import { formatDateHuman, todayInLisbon } from "@/lib/date";
 import { slotById, slotTimeLabel } from "@/data/booking";
 import { spaceById } from "@/data/spaces";
-import { VAT_RATE, packageById } from "@/data/pricing";
+import { packageById } from "@/data/pricing";
+import { getCatalogue, getPricing } from "@/lib/data-source";
 import type { MonthAvailability } from "@/data/availability";
 import { eur } from "@/lib/money";
 import { isCalendarConfigured } from "@/lib/gcal/auth";
@@ -57,7 +58,10 @@ export async function POST(req: NextRequest) {
     }
     const r = parsed.value;
 
-    // Recompute server-side. The client's number is advisory.
+    // Recompute server-side. The client's number is advisory — and this is
+    // the authoritative read of the live rate card, not the build's copy.
+    const [pricing, catalogue] = await Promise.all([getPricing(), getCatalogue()]);
+
     const quote = computeQuote({
       slotId: r.slotId,
       spaceId: r.spaceId,
@@ -66,6 +70,11 @@ export async function POST(req: NextRequest) {
       addonIds: r.addonIds,
       equipment: r.equipment,
       bundleIds: r.bundleIds,
+    }, {
+      packages: pricing.packages,
+      items: catalogue.allItems,
+      vatRate: pricing.vatRate,
+      weekendMultiplier: pricing.weekendMultiplier,
     });
 
     if (quote.unknownIds.length > 0) {
@@ -86,7 +95,7 @@ export async function POST(req: NextRequest) {
     const ref = bookingRef();
     const slot = slotById(r.slotId);
     const space = spaceById(r.spaceId);
-    const pkg = packageById(r.packageId);
+    const pkg = packageById(pricing.packages, r.packageId);
 
     /*
      * Calendar write.
@@ -202,7 +211,7 @@ export async function POST(req: NextRequest) {
           ? [`${quote.surcharge.label} surcharge: ${eur(quote.surcharge.amount)}`]
           : []),
         `Subtotal: ${eur(quote.subtotal)}`,
-        `IVA ${Math.round(VAT_RATE * 100)}%: ${eur(quote.vat)}`,
+        `IVA ${Math.round(pricing.vatRate * 100)}%: ${eur(quote.vat)}`,
         `TOTAL INCL. IVA: ${eur(quote.total)}`,
         "",
         "Brief:",

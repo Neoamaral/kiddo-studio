@@ -32,6 +32,19 @@ const VALID_PERIODS = ["hour", "halfDay", "day", "week", "unit"];
 /** The gallery is designed for six; more still renders. */
 const PHOTO_SOFT_MAX = 6;
 
+/** Where the admin panel stores photos. */
+const PHOTO_PREFIX = "equipment";
+
+/**
+ * A photo in the studio's own Vercel Blob store.
+ *
+ * Deliberately narrow: any other host is refused. Photos used to be committed
+ * files, and a few seeded ones may still be — both shapes are accepted, and
+ * nothing else is.
+ */
+const BLOB_PHOTO =
+  /^https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com\/[a-z0-9-]+\/[a-z0-9-]+\/\d{2}\.(jpg|png|webp)$/;
+
 function checkRate(rate: Rate, where: string, out: ValidationResult): void {
   if (!rate || typeof rate !== "object" || !("kind" in rate)) {
     out.errors.push(`${where}: rate is missing or malformed`);
@@ -92,9 +105,18 @@ function checkPhotos(row: EquipmentSourceRow, i: number, out: ValidationResult):
   for (const [j, p] of photos.entries()) {
     const at = `${where} photo ${j}`;
 
-    if (/^https?:/i.test(p.src)) {
+    if (BLOB_PHOTO.test(p.src)) {
+      // Our own storage. The rule that used to reject every http(s) URL was
+      // about links that EXPIRE — a Notion file URL dies in about an hour.
+      // These do not, and they are the only place photos live now.
+      const expectedBlobDir = `/${PHOTO_PREFIX}/${(row.code || "").toLowerCase()}/`;
+      if (!p.src.includes(expectedBlobDir)) {
+        out.errors.push(`${at}: wrong folder; expected ${expectedBlobDir}`);
+      }
+    } else if (/^https?:/i.test(p.src)) {
       out.errors.push(
-        `${at}: remote URL "${p.src}" — signed links expire; the file must be committed`
+        `${at}: "${p.src}" is not in the studio's own storage — a link somewhere ` +
+          `else can expire or change without notice`
       );
     } else if (!p.src.startsWith("/images/equipment/") || p.src.includes("..")) {
       out.errors.push(`${at}: src must live under /images/equipment/`);

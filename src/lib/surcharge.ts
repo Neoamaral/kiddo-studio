@@ -13,7 +13,7 @@
  */
 
 import { addDays, dayOfWeek, isoDate, parseISO, type ISODate } from "./date";
-import { WEEKEND_MULTIPLIER } from "@/data/pricing";
+
 
 /** Saturday or Sunday. dayOfWeek is Sakamoto's, 0 = Sunday. */
 export function isWeekend(iso: ISODate): boolean {
@@ -113,7 +113,15 @@ export function surchargeReason(iso: ISODate | null | undefined): SurchargeReaso
   return null;
 }
 
-/** 1.2 on a weekend or public holiday, 1 otherwise. */
-export function surchargeMultiplier(iso: ISODate | null | undefined): number {
-  return surchargeReason(iso) ? WEEKEND_MULTIPLIER : 1;
+/**
+ * The configured multiplier on a weekend or public holiday, 1 otherwise.
+ *
+ * The multiplier is passed in rather than imported: it is editable in the
+ * admin panel, and a module-level import would freeze it at build time.
+ */
+export function surchargeMultiplier(
+  iso: ISODate | null | undefined,
+  weekendMultiplier: number
+): number {
+  return surchargeReason(iso) ? weekendMultiplier : 1;
 }

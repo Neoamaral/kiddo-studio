@@ -9,6 +9,7 @@ import {
 } from "@/components/kiddo-assets";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { spaceById, spaceFromRate } from "@/data/spaces";
+import type { StudioPackage } from "@/data/types";
 import { formatRate } from "@/lib/money";
 
 /* ─── Data ──────────────────────────────────────────────────────────────── */
@@ -127,7 +128,16 @@ const ROOMS: Room[] = [
 
 /* ─── Shared sub-components ─────────────────────────────────────────────── */
 
-function RoomHeader({ room, textColor }: { room: Room; textColor: string }) {
+function RoomHeader({
+  room,
+  textColor,
+  fromLabel,
+}: {
+  room: Room;
+  textColor: string;
+  /** Formatted "FROM 180€/DAY", computed once from the live rate card. */
+  fromLabel: string;
+}) {
   return (
     <div
       style={{
@@ -199,7 +209,7 @@ function RoomHeader({ room, textColor }: { room: Room; textColor: string }) {
           flexShrink: 0,
         }}
       >
-        {room.price ?? formatRate(spaceFromRate(spaceById(room.id)!))}
+        {room.price ?? fromLabel}
       </div>
     </div>
   );
@@ -309,7 +319,7 @@ function RoomBody({ room, textColor }: { room: Room; textColor: string }) {
 
 /* ─── Layout variants ────────────────────────────────────────────────────── */
 
-function RoomImageRightTall({ room }: { room: Room }) {
+function RoomImageRightTall({ room, fromLabel }: { room: Room; fromLabel: string }) {
   const textColor = kiddoColors.black;
   const vPad = "clamp(2.5rem, 6vw, 5rem)";
   return (
@@ -328,7 +338,7 @@ function RoomImageRightTall({ room }: { room: Room }) {
             justifyContent: "center",
           }}
         >
-          <RoomHeader room={room} textColor={textColor} />
+          <RoomHeader room={room} textColor={textColor} fromLabel={fromLabel} />
           <RoomHeadline room={room} textColor={textColor} />
           <RoomBody room={room} textColor={textColor} />
         </div>
@@ -367,7 +377,7 @@ function RoomImageRightTall({ room }: { room: Room }) {
   );
 }
 
-function RoomImageFullbleedOverlay({ room }: { room: Room }) {
+function RoomImageFullbleedOverlay({ room, fromLabel }: { room: Room; fromLabel: string }) {
   const textColor = "#fff";
   return (
     <section
@@ -418,7 +428,7 @@ function RoomImageFullbleedOverlay({ room }: { room: Room }) {
         }}
       >
         <div style={{ maxWidth: 560 }}>
-          <RoomHeader room={room} textColor={textColor} />
+          <RoomHeader room={room} textColor={textColor} fromLabel={fromLabel} />
           <RoomHeadline room={room} textColor={textColor} />
           <RoomBody room={room} textColor={textColor} />
         </div>
@@ -445,7 +455,7 @@ function RoomImageFullbleedOverlay({ room }: { room: Room }) {
   );
 }
 
-function RoomImageLeft({ room }: { room: Room }) {
+function RoomImageLeft({ room, fromLabel }: { room: Room; fromLabel: string }) {
   const textColor = kiddoColors.black;
   return (
     <section
@@ -495,7 +505,7 @@ function RoomImageLeft({ room }: { room: Room }) {
             justifyContent: "center",
           }}
         >
-          <RoomHeader room={room} textColor={textColor} />
+          <RoomHeader room={room} textColor={textColor} fromLabel={fromLabel} />
           <RoomHeadline room={room} textColor={textColor} />
           <RoomBody room={room} textColor={textColor} />
         </div>
@@ -504,7 +514,7 @@ function RoomImageLeft({ room }: { room: Room }) {
   );
 }
 
-function RoomImageGrid({ room, isMobile }: { room: Room; isMobile: boolean }) {
+function RoomImageGrid({ room, isMobile, fromLabel }: { room: Room; isMobile: boolean; fromLabel: string }) {
   const textColor = kiddoColors.black;
   return (
     <section
@@ -525,7 +535,7 @@ function RoomImageGrid({ room, isMobile }: { room: Room; isMobile: boolean }) {
             justifyContent: "center",
           }}
         >
-          <RoomHeader room={room} textColor={textColor} />
+          <RoomHeader room={room} textColor={textColor} fromLabel={fromLabel} />
           <RoomHeadline room={room} textColor={textColor} />
           <RoomBody room={room} textColor={textColor} />
         </div>
@@ -582,19 +592,29 @@ function RoomImageGrid({ room, isMobile }: { room: Room; isMobile: boolean }) {
 
 /* ─── Export ─────────────────────────────────────────────────────────────── */
 
-export default function StudioRoomsSection() {
+export default function StudioRoomsSection({
+  packages,
+}: {
+  /** From the page — the rate card is editable and must not be baked in. */
+  packages: readonly StudioPackage[];
+}) {
   const isMobile = useIsMobile();
+  const fromLabelFor = (id: string) => {
+    const space = spaceById(id);
+    return space ? formatRate(spaceFromRate(space, packages)) : "";
+  };
   return (
     <>
       {ROOMS.map((room) => {
+        const fromLabel = fromLabelFor(room.id);
         if (room.layout === "image-right-tall")
-          return <RoomImageRightTall key={room.id} room={room} />;
+          return <RoomImageRightTall key={room.id} room={room} fromLabel={fromLabel} />;
         if (room.layout === "image-fullbleed-overlay")
-          return <RoomImageFullbleedOverlay key={room.id} room={room} />;
+          return <RoomImageFullbleedOverlay key={room.id} room={room} fromLabel={fromLabel} />;
         if (room.layout === "image-left")
-          return <RoomImageLeft key={room.id} room={room} />;
+          return <RoomImageLeft key={room.id} room={room} fromLabel={fromLabel} />;
         if (room.layout === "image-grid")
-          return <RoomImageGrid key={room.id} room={room} isMobile={isMobile} />;
+          return <RoomImageGrid key={room.id} room={room} isMobile={isMobile} fromLabel={fromLabel} />;
         return null;
       })}
 

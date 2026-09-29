@@ -21,11 +21,12 @@ import type {
 } from "@/data/availability";
 import { emptyMonth } from "@/data/availability";
 import { TIME_SLOTS, slotById } from "@/data/booking";
-import { ALL_ITEMS } from "@/data/equipment";
+import type { EquipmentItem } from "@/data/types";
 import { resourcesForSpace } from "@/data/resources";
 import type { ISODate } from "@/lib/date";
 import { addDays, daysInMonth, isoDate, parseISO, zonedInstant } from "@/lib/date";
 import { unstable_cache, revalidateTag } from "next/cache";
+import { getCatalogue } from "@/lib/data-source";
 import { gcalGet, gcalPost } from "./client";
 import { calendarIdFor } from "./calendars";
 
@@ -151,7 +152,8 @@ export async function readMonthAvailability(
   const equipmentRemaining = await readEquipmentRemaining(
     Object.values(roomIds),
     timeMin,
-    timeMax
+    timeMax,
+    (await getCatalogue()).allItems
   );
 
   return {
@@ -213,7 +215,9 @@ function eventDate(ev: { start?: { date?: string; dateTime?: string } }): ISODat
 async function readEquipmentRemaining(
   calendarIds: string[],
   timeMin: string,
-  timeMax: string
+  timeMax: string,
+  /** The live catalogue — stock is editable in the admin panel. */
+  items: readonly EquipmentItem[]
 ): Promise<Record<ISODate, Record<string, number>>> {
   const committed: Record<ISODate, Record<string, number>> = {};
 
@@ -257,7 +261,7 @@ async function readEquipmentRemaining(
   for (const [date, counts] of Object.entries(committed)) {
     remaining[date] = {};
     for (const [code, used] of Object.entries(counts)) {
-      const item = ALL_ITEMS.find((i) => i.code === code);
+      const item = items.find((i) => i.code === code);
       if (!item) continue;
       remaining[date][code] = Math.max(0, item.inStock - used);
     }

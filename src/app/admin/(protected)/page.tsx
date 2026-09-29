@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { EQUIPMENT_CATALOGUE, TOTAL_ITEMS } from "@/data/equipment";
-import { PACKAGES } from "@/data/pricing";
+import { getCatalogue, getPricing } from "@/lib/data-source";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +12,8 @@ const card: React.CSSProperties = {
   display: "block",
 };
 
-export default function AdminHome() {
+export default async function AdminHome() {
+  const [catalogue, pricing] = await Promise.all([getCatalogue(), getPricing()]);
   return (
     <>
       <h1
@@ -39,10 +39,10 @@ export default function AdminHome() {
             EQUIPMENT
           </span>
           <div style={{ fontFamily: "var(--font-display)", fontSize: 40, lineHeight: 1.1 }}>
-            {TOTAL_ITEMS}
+            {catalogue.totalItems}
           </div>
           <span style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "rgba(0,0,0,0.55)" }}>
-            items in {EQUIPMENT_CATALOGUE.length} categories
+            items in {catalogue.totalCategories} categories
           </span>
         </Link>
 
@@ -51,7 +51,7 @@ export default function AdminHome() {
             PRICING
           </span>
           <div style={{ fontFamily: "var(--font-display)", fontSize: 40, lineHeight: 1.1 }}>
-            {PACKAGES.length}
+            {pricing.packages.length}
           </div>
           <span style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "rgba(0,0,0,0.55)" }}>
             studio packages

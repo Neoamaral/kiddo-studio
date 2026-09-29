@@ -20,14 +20,26 @@ import { easterSunday, holidaysInYear, isPortugueseHoliday, isWeekend } from "..
 import {
   DEFAULT_DURATION_ID,
   DEFAULT_PACKAGE_ID,
-  DURATIONS,
-  PACKAGES,
-  PACKAGE_BY_ID,
-  VAT_RATE,
-  WEEKEND_MULTIPLIER,
+  SEED_PRICING,
 } from "../src/data/pricing";
-import { itemByCode } from "../src/data/equipment";
+import { SEED_CATALOGUE, itemByCode } from "../src/data/equipment";
 import { rateAmount } from "../src/lib/money";
+
+/*
+ * The seed is the fixture. computeQuote takes its data as an argument now —
+ * there is no module-level price list to read — so the test supplies the same
+ * rate card the site falls back to.
+ */
+const { packages: PACKAGES, durations: DURATIONS, packageById: PACKAGE_BY_ID } = SEED_PRICING;
+const VAT_RATE = SEED_PRICING.vatRate;
+const WEEKEND_MULTIPLIER = SEED_PRICING.weekendMultiplier;
+
+const DATA = {
+  packages: PACKAGES,
+  items: SEED_CATALOGUE.allItems,
+  vatRate: VAT_RATE,
+  weekendMultiplier: WEEKEND_MULTIPLIER,
+};
 import { validatePricing } from "../src/lib/pricing-validate";
 import pricingSource from "../src/data/pricing.source.json";
 import type { PricingSource } from "../src/data/types";
@@ -58,7 +70,7 @@ check("the rate card in the repository passes its own rules", pricingErrors.join
 /* ── 2. The base price is the package times the duration ─────────────────── */
 
 const studio = (pkg: string, slot: string, space = "cyc", date = WEEKDAY) =>
-  computeQuote({ slotId: slot, spaceId: space, packageId: pkg, date, addonIds: [] });
+  computeQuote({ slotId: slot, spaceId: space, packageId: pkg, date, addonIds: [] }, DATA);
 
 // Whatever the numbers are, a quote must charge exactly what the rate card
 // says for that combination — this is the wiring, not the price.
@@ -117,7 +129,7 @@ check("Sunday applies it", studio(base.id, "fd", "cyc", SUNDAY).subtotal, surcha
 check("a weekday does not", studio(base.id, "fd", "cyc", WEEKDAY).subtotal, weekdayNet);
 check("no date means no surcharge", computeQuote({
   slotId: "fd", spaceId: "cyc", packageId: base.id, addonIds: [],
-}).subtotal, weekdayNet);
+}, DATA).subtotal, weekdayNet);
 
 check("Christmas applies it", studio(base.id, "fd", "cyc", CHRISTMAS).subtotal, surcharged);
 check("Good Friday 2027 applies it", studio(base.id, "fd", "cyc", GOOD_FRIDAY_2027).subtotal, surcharged);
@@ -143,13 +155,13 @@ check(
 // Derived from the catalogue, which the admin panel also edits — hardcoding a
 // gear price here would break every time someone repriced a light.
 const GEAR = "LIT-01";
-const gearRate = rateAmount(itemByCode(GEAR)!.rate)!;
+const gearRate = rateAmount(itemByCode(SEED_CATALOGUE.allItems, GEAR)!.rate)!;
 
 const withGear = (date: string, qty: number) =>
   computeQuote({
     slotId: "fd", spaceId: "cyc", packageId: base.id, date,
     addonIds: [], equipment: { [GEAR]: qty },
-  }).subtotal;
+  }, DATA).subtotal;
 
 check("equipment is NOT surcharged on a Saturday", withGear(SATURDAY, 1), surcharged + gearRate);
 check("same gear on a weekday", withGear(WEEKDAY, 1), weekdayNet + gearRate);
@@ -160,7 +172,7 @@ check("quantity multiplies", withGear(WEEKDAY, 2), weekdayNet + gearRate * 2);
 const bundled = computeQuote({
   slotId: "fd", spaceId: "cyc", packageId: base.id, date: WEEKDAY,
   addonIds: [], bundleIds: ["cam"], equipment: { "CAM-01": 1 },
-});
+}, DATA);
 check(
   "a member inside a chosen bundle is not charged twice",
   bundled.subtotal,
@@ -172,7 +184,7 @@ check(
 const bogus = computeQuote({
   slotId: "nope", spaceId: "nope", packageId: "nope", date: WEEKDAY,
   addonIds: ["nope"],
-});
+}, DATA);
 check("unknown ids are collected", bogus.unknownIds.length, 4);
 check(
   "an unknown package falls back to the default, not to zero",

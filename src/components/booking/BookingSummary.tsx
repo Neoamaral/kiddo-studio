@@ -14,9 +14,12 @@ import type { Quote } from "@/lib/quote";
 import type { ISODate } from "@/lib/date";
 import { formatDateHuman } from "@/lib/date";
 import { eur, eurSigned } from "@/lib/money";
-import { VAT_RATE, WEEKEND_BADGE } from "@/data/pricing";
+
 
 export interface BookingSummaryProps {
+  /** From the live rate card, not a module import — both are editable. */
+  vatRate: number;
+  weekendBadge: string;
   date: ISODate | null;
   slotId: string;
   spaceId: string;
@@ -36,6 +39,8 @@ export default function BookingSummary({
   canConfirm,
   isSubmitting,
   onSubmit,
+  vatRate,
+  weekendBadge,
 }: BookingSummaryProps) {
   const slotObj = TIME_SLOTS.find((t) => t.id === slotId);
   const spaceObj = BOOKABLE_SPACES.find((s) => s.id === spaceId);
@@ -128,7 +133,7 @@ export default function BookingSummary({
             fifth reads as a mistake, not as a surcharge. */}
         {quote.surcharge && (
           <PriceRow
-            label={`${quote.surcharge.label} · ${WEEKEND_BADGE}`}
+            label={`${quote.surcharge.label} · ${weekendBadge}`}
             value={eurSigned(quote.surcharge.amount)}
           />
         )}
@@ -170,7 +175,7 @@ export default function BookingSummary({
             value={slotId ? eur(quote.subtotal) : "—"}
           />
           <PriceRow
-            label={`IVA ${Math.round(VAT_RATE * 100)}%`}
+            label={`IVA ${Math.round(vatRate * 100)}%`}
             value={slotId ? eur(quote.vat) : "—"}
           />
         </div>

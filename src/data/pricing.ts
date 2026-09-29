@@ -1,9 +1,14 @@
 /**
  * Studio rental pricing — Phase 1 "Soft Launch".
  *
- * The NUMBERS live in ./pricing.source.json, which the admin panel writes.
- * This file holds the types, the derived lookups and the helper functions —
- * everything a panel has no business generating.
+ * SOURCE OF TRUTH: the admin panel, which stores the rate card in Vercel Blob.
+ * ./pricing.source.json is the SEED — what the site serves until the first
+ * save, and the fallback if the store cannot be reached.
+ *
+ * derivePricing() takes the rate card as an ARGUMENT rather than reading the
+ * import, because it now arrives at request time. There are deliberately no
+ * module-level `export const` prices: a component that kept importing one
+ * would render the numbers baked in at build and never update.
  *
  * EVERY AMOUNT EXCLUDES VAT. The rate card quotes "€180 + IVA", so the
  * numbers are stored exactly as the studio wrote them and VAT is added at the
@@ -30,42 +35,67 @@ import source from "./pricing.source.json";
  */
 const data = source as unknown as PricingSource;
 
-/** Portugal, standard rate. */
-export const VAT_RATE = data.vatRate;
+/** Every number and list the site renders, derived from one rate card. */
+export interface PricingView {
+  vatRate: number;
+  studioDay: PricingSource["studioDay"];
+  overtime: PricingSource["overtime"];
+  weekendMultiplier: number;
+  /** "+20% APPLIED" — derived so the badge can never contradict the maths. */
+  weekendBadge: string;
+  durations: readonly Duration[];
+  durationById: Record<DurationId, Duration>;
+  packages: readonly StudioPackage[];
+  packageById: Record<PackageId, StudioPackage>;
+  addons: readonly Addon[];
+  /** Homepage teaser rows, one per package, quoting the full day. */
+  homeRows: readonly {
+    title: string;
+    duration: string;
+    price: string;
+    desc: string;
+    highlight: boolean;
+  }[];
+  /** Answers computed from the rates above, so they cannot go stale. */
+  faq: readonly { q: string; a: string }[];
+}
 
-/**
- * Standard studio hours. Anything before `open` or after `close` bills at the
- * off-hours overtime rate, whatever the day — which is why every TIME_SLOT in
- * booking.ts sits inside this window.
- */
-export const STUDIO_DAY = data.studioDay;
+export function derivePricing(data: PricingSource): PricingView {
+  const durationById = Object.fromEntries(
+    data.durations.map((d) => [d.id, d])
+  ) as Record<DurationId, Duration>;
 
-/**
- * Charged after the fact, never booked in advance: overtime is "any time
- * extending past the agreed wrap time", which nobody can select up front.
- * Euros per hour, excluding VAT.
- */
-export const OVERTIME = data.overtime;
+  const packageById = Object.fromEntries(
+    data.packages.map((p) => [p.id, p])
+  ) as Record<PackageId, StudioPackage>;
 
-/** Weekend and public-holiday surcharge. */
-export const WEEKEND_MULTIPLIER = data.weekendMultiplier;
+  const percent = Math.round((data.weekendMultiplier - 1) * 100);
 
-/** "+20% APPLIED" — derived so the badge can never contradict the maths. */
-export const WEEKEND_BADGE = `+${Math.round(
-  (WEEKEND_MULTIPLIER - 1) * 100
-)}% APPLIED`;
+  return {
+    vatRate: data.vatRate,
+    studioDay: data.studioDay,
+    overtime: data.overtime,
+    weekendMultiplier: data.weekendMultiplier,
+    weekendBadge: `+${percent}% APPLIED`,
+    durations: data.durations,
+    durationById,
+    packages: data.packages,
+    packageById,
+    addons: data.addons,
+    homeRows: data.packages.map((p) => ({
+      title: p.name,
+      duration: durationById.fd?.label ?? "FULL DAY",
+      price: `${p.rates.fd}€`,
+      desc: p.homeBlurb,
+      highlight: !!p.featured,
+    })),
+    faq: buildFaq(data),
+  };
+}
 
-export const DURATIONS: readonly Duration[] = data.durations;
-
-export const DURATION_BY_ID: Record<DurationId, Duration> = Object.fromEntries(
-  DURATIONS.map((d) => [d.id, d])
-) as Record<DurationId, Duration>;
-
-export const PACKAGES: readonly StudioPackage[] = data.packages;
-
-export const PACKAGE_BY_ID: Record<PackageId, StudioPackage> = Object.fromEntries(
-  PACKAGES.map((p) => [p.id, p])
-) as Record<PackageId, StudioPackage>;
+/** The rate card shipped in the repository. The seed, and the fallback. */
+export const SEED_PRICING_SOURCE: PricingSource = data;
+export const SEED_PRICING: PricingView = derivePricing(data);
 
 /**
  * The package quoted before one is picked, and the duration quoted before a
@@ -76,8 +106,11 @@ export const PACKAGE_BY_ID: Record<PackageId, StudioPackage> = Object.fromEntrie
 export const DEFAULT_PACKAGE_ID: PackageId = "base";
 export const DEFAULT_DURATION_ID: DurationId = "hd";
 
-export function packageById(id: string | null | undefined): StudioPackage | undefined {
-  return id ? PACKAGES.find((p) => p.id === id) : undefined;
+export function packageById(
+  packages: readonly StudioPackage[],
+  id: string | null | undefined
+): StudioPackage | undefined {
+  return id ? packages.find((p) => p.id === id) : undefined;
 }
 
 /** Base studio price, EXCLUDING VAT. */
@@ -86,13 +119,13 @@ export function packagePrice(pkg: StudioPackage, durationId: DurationId): Euros 
 }
 
 /** Cheapest way into the studio — drives the pricing hero and "FROM" copy. */
-export function entryPrice(): Euros {
-  return Math.min(...PACKAGES.flatMap((p) => Object.values(p.rates)));
+export function entryPrice(packages: readonly StudioPackage[]): Euros {
+  return Math.min(...packages.flatMap((p) => Object.values(p.rates)));
 }
 
 /** Cheapest full day, before any space upcharge. */
-export function cheapestFullDay(): Euros {
-  return Math.min(...PACKAGES.map((p) => p.rates.fd));
+export function cheapestFullDay(packages: readonly StudioPackage[]): Euros {
+  return Math.min(...packages.map((p) => p.rates.fd));
 }
 
 /* ── VAT ──────────────────────────────────────────────────────────────────
@@ -102,53 +135,46 @@ export function cheapestFullDay(): Euros {
  * total of 221.
  */
 
-export function withVat(net: Euros): Euros {
-  return Math.round(net * (1 + VAT_RATE));
+export function withVat(net: Euros, vatRate: number): Euros {
+  return Math.round(net * (1 + vatRate));
 }
 
-export function vatOf(net: Euros): Euros {
-  return withVat(net) - Math.round(net);
+export function vatOf(net: Euros, vatRate: number): Euros {
+  return withVat(net, vatRate) - Math.round(net);
 }
-
-export const ADDONS: readonly Addon[] = data.addons;
 
 /**
- * Homepage CTA rows — a teaser, not the full table; "SEE ALL PRICING" carries
- * the rest. One row per package, quoting the full day.
+ * Built from the rate card, not written out: every answer below quotes a
+ * number that the panel can change, and a frozen string would start lying the
+ * first time someone did.
  */
-export const HOME_PRICING_ROWS = PACKAGES.map((p) => ({
-  title: p.name,
-  duration: DURATION_BY_ID.fd.label,
-  price: `${p.rates.fd}€`,
-  desc: p.homeBlurb,
-  highlight: !!p.featured,
-}));
-
-export const FAQ = [
-  {
-    q: "What's included in studio rental?",
-    a: "WiFi, coffee, sound, climate control, the heavy grip package, and a friendly human on call. Lighting depends on the package you pick.",
-  },
-  {
-    q: "Do you offer crew?",
-    a: "Yes. We have a roster of trusted DPs, gaffers, makeup artists and stylists.",
-  },
-  {
-    q: "What happens if we run over?",
-    a: `Overtime is billed automatically at ${OVERTIME.standard}€/h + IVA past the agreed wrap time. Before ${STUDIO_DAY.open} or after ${STUDIO_DAY.close} it is ${OVERTIME.offHours}€/h + IVA, whatever the day.`,
-  },
-  {
-    q: "Do weekends cost more?",
-    a: `Yes. Saturdays, Sundays and public holidays carry a +${Math.round(
-      (WEEKEND_MULTIPLIER - 1) * 100
-    )}% surcharge on studio time.`,
-  },
-  {
-    q: "Can I store gear overnight?",
-    a: "Overnight set hold is an add-on. Ask us if you need several days — we'll quote it.",
-  },
-  {
-    q: "Cancellation policy?",
-    a: "Full refund up to 7 days before. 50% within 7 days. We're reasonable — talk to us.",
-  },
-] as const;
+function buildFaq(d: PricingSource): { q: string; a: string }[] {
+  return [
+    {
+      q: "What's included in studio rental?",
+      a: "WiFi, coffee, sound, climate control, the heavy grip package, and a friendly human on call. Lighting depends on the package you pick.",
+    },
+    {
+      q: "Do you offer crew?",
+      a: "Yes. We have a roster of trusted DPs, gaffers, makeup artists and stylists.",
+    },
+    {
+      q: "What happens if we run over?",
+      a: `Overtime is billed automatically at ${d.overtime.standard}€/h + IVA past the agreed wrap time. Before ${d.studioDay.open} or after ${d.studioDay.close} it is ${d.overtime.offHours}€/h + IVA, whatever the day.`,
+    },
+    {
+      q: "Do weekends cost more?",
+      a: `Yes. Saturdays, Sundays and public holidays carry a +${Math.round(
+        (d.weekendMultiplier - 1) * 100
+      )}% surcharge on studio time.`,
+    },
+    {
+      q: "Can I store gear overnight?",
+      a: "Overnight set hold is an add-on. Ask us if you need several days — we'll quote it.",
+    },
+    {
+      q: "Cancellation policy?",
+      a: "Full refund up to 7 days before. 50% within 7 days. We're reasonable — talk to us.",
+    },
+  ];
+}

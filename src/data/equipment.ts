@@ -1,14 +1,19 @@
 /**
  * Equipment catalogue.
  *
- * SOURCE OF TRUTH: src/data/equipment.source.json, transcribed from the Notion
- * page "EQUIP RENTAL PRICES — WEB" at authoring time (see scripts/sync-equipment.md).
- * Nothing here fetches Notion — the site stays fully static.
+ * SOURCE OF TRUTH: the admin panel, which stores the rows in Vercel Blob.
+ * src/data/equipment.source.json is the SEED — what the site serves until the
+ * first save, and the fallback if the store cannot be reached.
  *
- * Everything that is a function of the data (counts, filter tabs, straplines,
- * the hero summary bar) is DERIVED below. Never hand-write those again.
+ * Everything that is a function of the rows (counts, filter tabs, straplines,
+ * the hero summary bar) is DERIVED by deriveCatalogue(). It takes rows as an
+ * ARGUMENT rather than reading the import, because the rows now arrive at
+ * request time — see src/lib/data-source.ts.
  *
- * Studio tiers/add-ons are NOT part of this sync — they live in src/data/pricing.ts.
+ * There are deliberately no module-level `export const` catalogues any more. A
+ * component that quietly kept importing one would render the data baked in at
+ * build time and never update, which is exactly the bug this shape prevents:
+ * without them, the compiler names every place that has to be passed the data.
  */
 
 import type {
@@ -102,35 +107,50 @@ function buildCatalogue(rows: readonly EquipmentSourceRow[]): EquipmentCategory[
   });
 }
 
-export const EQUIPMENT_CATALOGUE: readonly EquipmentCategory[] = buildCatalogue(
-  (source as EquipmentSource).rows
-);
+/** Everything the equipment pages render, derived from one set of rows. */
+export interface CatalogueView {
+  categories: readonly EquipmentCategory[];
+  allItems: readonly EquipmentItem[];
+  totalItems: number;
+  totalCategories: number;
+  /** ["ALL", "CAM", "LIT", …] */
+  filterTabs: readonly string[];
+  /** Cover strip, e.g. "22 ITEMS · 5 CATEGORIES". */
+  strapline: string;
+  /** Hero pull-out bar, e.g. [{ label: "CAMERAS", value: "5 bodies" }, …]. */
+  summary: readonly { label: string; value: string }[];
+}
 
-export const ALL_ITEMS: readonly EquipmentItem[] = EQUIPMENT_CATALOGUE.flatMap(
-  (c) => c.items
-);
+export function deriveCatalogue(rows: readonly EquipmentSourceRow[]): CatalogueView {
+  const categories = buildCatalogue(rows);
+  const allItems = categories.flatMap((c) => c.items);
+  return {
+    categories,
+    allItems,
+    totalItems: allItems.length,
+    totalCategories: categories.length,
+    filterTabs: ["ALL", ...categories.map((c) => c.code)],
+    strapline: `${allItems.length} ITEMS · ${categories.length} CATEGORIES`,
+    summary: categories.map((c) => ({
+      label: c.shortLabel,
+      value: `${c.items.length} ${c.unitNoun}`,
+    })),
+  };
+}
 
-export const TOTAL_ITEMS = ALL_ITEMS.length;
-export const TOTAL_CATEGORIES = EQUIPMENT_CATALOGUE.length;
+/** The rows shipped in the repository. The seed, and the fallback. */
+export const SEED_ROWS: readonly EquipmentSourceRow[] = (source as EquipmentSource).rows;
 
-/** Was the hand-written FILTER_TABS literal. */
-export const FILTER_TABS = [
-  "ALL",
-  ...EQUIPMENT_CATALOGUE.map((c) => c.code),
-] as const;
-export type FilterTab = (typeof FILTER_TABS)[number];
+/** The seed, derived. Used by scripts and as the fallback view. */
+export const SEED_CATALOGUE: CatalogueView = deriveCatalogue(SEED_ROWS);
 
-/** Cover strip, e.g. "22 ITEMS · 5 CATEGORIES". */
-export const CATALOGUE_STRAPLINE = `${TOTAL_ITEMS} ITEMS · ${TOTAL_CATEGORIES} CATEGORIES`;
+export type FilterTab = string;
 
-/** Hero pull-out bar, e.g. [{ label: "CAMERAS", value: "5 bodies" }, …]. */
-export const CATEGORY_SUMMARY = EQUIPMENT_CATALOGUE.map((c) => ({
-  label: c.shortLabel,
-  value: `${c.items.length} ${c.unitNoun}`,
-}));
-
-export function itemByCode(code: string): EquipmentItem | undefined {
-  return ALL_ITEMS.find((i) => i.code === code);
+export function itemByCode(
+  items: readonly EquipmentItem[],
+  code: string
+): EquipmentItem | undefined {
+  return items.find((i) => i.code === code);
 }
 
 /** Never undefined — an item with no photos is a normal case, not an error. */
@@ -164,11 +184,14 @@ export const EQUIPMENT_BUNDLES: readonly EquipmentBundle[] = [
 ];
 
 /** Explicit bundle price, or the sum of its members' day rates. */
-export function bundleAmount(bundle: EquipmentBundle): number | null {
+export function bundleAmount(
+  bundle: EquipmentBundle,
+  items: readonly EquipmentItem[]
+): number | null {
   if (bundle.rate) return rateAmount(bundle.rate);
   let sum = 0;
   for (const code of bundle.memberCodes) {
-    const amount = rateAmount(itemByCode(code)?.rate ?? { kind: "onRequest" });
+    const amount = rateAmount(itemByCode(items, code)?.rate ?? { kind: "onRequest" });
     if (amount === null) return null;
     sum += amount;
   }

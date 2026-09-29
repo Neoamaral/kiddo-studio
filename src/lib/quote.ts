@@ -6,13 +6,12 @@
  * and could silently disagree.
  */
 
-import type { Euros } from "@/data/types";
+import type { EquipmentItem, Euros, StudioPackage } from "@/data/types";
 import type { ISODate } from "@/lib/date";
 import { ADDON_OPTIONS, slotById } from "@/data/booking";
 import {
   DEFAULT_DURATION_ID,
   DEFAULT_PACKAGE_ID,
-  PACKAGE_BY_ID,
   packageById,
   packagePrice,
   vatOf,
@@ -22,6 +21,25 @@ import { surchargeMultiplier, surchargeReason, type SurchargeReason } from "@/li
 import { spaceById } from "@/data/spaces";
 import { EQUIPMENT_BUNDLES, bundleAmount, itemByCode } from "@/data/equipment";
 import { rateAmount } from "@/lib/money";
+
+/**
+ * The editable half of the price list, handed in rather than imported.
+ *
+ * Of the five sources this function used to read, only these two are editable
+ * in the admin panel — slots, spaces and booking add-ons are code. Passing
+ * them keeps computeQuote PURE AND SYNCHRONOUS, so the booking summary can
+ * call it during render and the API route can call it without awaiting.
+ *
+ * There is deliberately NO default. A caller that forgot to pass live data
+ * would quote from whatever shipped with the build: a wrong price, charged to
+ * a real client, with nothing to show that it happened.
+ */
+export interface QuoteData {
+  packages: readonly StudioPackage[];
+  items: readonly EquipmentItem[];
+  vatRate: number;
+  weekendMultiplier: number;
+}
 
 export interface QuoteInput {
   slotId: string | null;
@@ -87,7 +105,7 @@ export interface Quote {
   unknownIds: readonly string[];
 }
 
-export function computeQuote(input: QuoteInput): Quote {
+export function computeQuote(input: QuoteInput, data: QuoteData): Quote {
   const unknownIds: string[] = [];
 
   const slot = slotById(input.slotId);
@@ -96,8 +114,10 @@ export function computeQuote(input: QuoteInput): Quote {
   const space = spaceById(input.spaceId);
   if (input.spaceId && !space) unknownIds.push(input.spaceId);
 
-  const pkg = packageById(input.packageId) ?? PACKAGE_BY_ID[DEFAULT_PACKAGE_ID];
-  if (input.packageId && !packageById(input.packageId)) unknownIds.push(input.packageId);
+  const chosen = packageById(data.packages, input.packageId);
+  const pkg =
+    chosen ?? packageById(data.packages, DEFAULT_PACKAGE_ID) ?? data.packages[0];
+  if (input.packageId && !chosen) unknownIds.push(input.packageId);
 
   const durationId = slot?.durationId ?? DEFAULT_DURATION_ID;
   const base: QuoteLine = {
@@ -138,7 +158,7 @@ export function computeQuote(input: QuoteInput): Quote {
       unknownIds.push(id);
       continue;
     }
-    const amount = bundleAmount(bundle);
+    const amount = bundleAmount(bundle, data.items);
     if (amount === null) {
       // Price on request — never silently priced at zero.
       unknownIds.push(id);
@@ -158,7 +178,7 @@ export function computeQuote(input: QuoteInput): Quote {
     if (!Number.isFinite(qty) || qty <= 0) continue;
     if (coveredByBundle.has(code)) continue;
 
-    const item = itemByCode(code);
+    const item = itemByCode(data.items, code);
     if (!item) {
       unknownIds.push(code);
       continue;
@@ -187,7 +207,7 @@ export function computeQuote(input: QuoteInput): Quote {
    * rates" in the rate card is read as "the rates that scale with the day".
    */
   const studioTime = base.amount + (spaceLine?.amount ?? 0);
-  const multiplier = surchargeMultiplier(input.date);
+  const multiplier = surchargeMultiplier(input.date, data.weekendMultiplier);
   const surchargeAmount = Math.round(studioTime * multiplier) - studioTime;
   const reason = surchargeReason(input.date);
   const surcharge =
@@ -215,8 +235,8 @@ export function computeQuote(input: QuoteInput): Quote {
     bundles,
     equipment,
     subtotal,
-    vat: vatOf(subtotal),
-    total: withVat(subtotal),
+    vat: vatOf(subtotal, data.vatRate),
+    total: withVat(subtotal, data.vatRate),
     unknownIds,
   };
 }

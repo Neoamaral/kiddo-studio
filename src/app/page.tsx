@@ -1,3 +1,4 @@
+import { getCatalogue, getPricing } from "@/lib/data-source";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import HeroSection from "@/components/home/HeroSection";
@@ -7,7 +8,22 @@ import ProcessSection from "@/components/home/ProcessSection";
 import PricingCtaSection from "@/components/home/PricingCtaSection";
 import FindUsSection from "@/components/home/FindUsSection";
 
-export default function HomePage() {
+/**
+ * Rendered per request, not prerendered.
+ *
+ * This page reads data the admin panel can change. As a fully static page it
+ * was generated once at build and never revalidated — measured: a price saved
+ * in the panel had still not appeared 140 seconds later, and neither
+ * revalidateTag nor revalidatePath moved it. Only a redeploy did.
+ *
+ * The cost is small and in the right place: the expensive part, reading the
+ * store, stays behind unstable_cache and is purged on save. What happens per
+ * request is React rendering.
+ */
+export const dynamic = "force-dynamic";
+
+export default async function HomePage() {
+  const pricing = await getPricing();
   return (
     <>
       <Header />
@@ -23,7 +39,7 @@ export default function HomePage() {
         {/* RecentProjectsSection (the "NEON ICE x KIDDO STUDIO" portfolio
             strip) sat here and is hidden by request. Same deal: the file
             stays, so it comes back with an import and one line. */}
-        <PricingCtaSection />
+        <PricingCtaSection rows={pricing.homeRows} />
         <FindUsSection />
       </main>
       <Footer />

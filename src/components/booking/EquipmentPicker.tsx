@@ -13,7 +13,8 @@
 
 import { kiddoColors } from "@/components/kiddo-assets";
 import { ItemPrice } from "@/components/equipment/ledgerBits";
-import { EQUIPMENT_BUNDLES, EQUIPMENT_CATALOGUE, bundleAmount, itemByCode } from "@/data/equipment";
+import { EQUIPMENT_BUNDLES, bundleAmount, itemByCode } from "@/data/equipment";
+import type { CatalogueView } from "@/data/equipment";
 import { eur } from "@/lib/money";
 
 const monoXs: React.CSSProperties = {
@@ -24,6 +25,8 @@ const monoXs: React.CSSProperties = {
 };
 
 export interface EquipmentPickerProps {
+  /** The live catalogue, from the page. Editable, so never imported here. */
+  catalogue: CatalogueView;
   /** code -> quantity */
   value: Record<string, number>;
   onChange: (next: Record<string, number>) => void;
@@ -35,6 +38,7 @@ export interface EquipmentPickerProps {
 }
 
 export default function EquipmentPicker({
+  catalogue,
   value,
   onChange,
   bundleIds,
@@ -89,9 +93,9 @@ export default function EquipmentPicker({
         >
           {EQUIPMENT_BUNDLES.map((b) => {
             const on = bundleIds.includes(b.id);
-            const amount = bundleAmount(b);
+            const amount = bundleAmount(b, catalogue.allItems);
             const members = b.memberCodes
-              .map((c) => itemByCode(c)?.name)
+              .map((c) => itemByCode(catalogue.allItems, c)?.name)
               .filter(Boolean)
               .join(" · ");
             return (
@@ -131,7 +135,7 @@ export default function EquipmentPicker({
       </div>
 
       {/* Catalogue by category */}
-      {EQUIPMENT_CATALOGUE.map((cat) => (
+      {catalogue.categories.map((cat) => (
         <div key={cat.code} style={{ marginBottom: 22 }}>
           <div
             style={{

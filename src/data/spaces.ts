@@ -11,6 +11,7 @@
 
 import type { Rate, StudioSpace } from "./types";
 import { cheapestFullDay } from "./pricing";
+import type { StudioPackage } from "./types";
 
 export const SPACES: readonly StudioSpace[] = [
   {
@@ -53,6 +54,13 @@ export function spaceUpcharge(id: string | null): number {
 }
 
 /** "FROM 180€/DAY" — the cheapest package's full day plus this space's upcharge. */
-export function spaceFromRate(space: StudioSpace): Rate {
-  return { kind: "from", amount: cheapestFullDay() + space.upcharge, per: "day" };
+export function spaceFromRate(
+  space: StudioSpace,
+  packages: readonly StudioPackage[]
+): Rate {
+  return {
+    kind: "from",
+    amount: cheapestFullDay(packages) + space.upcharge,
+    per: "day",
+  };
 }

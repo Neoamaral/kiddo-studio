@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin/session";
 import { loadCatalogue, saveCatalogue, SaveRejected } from "@/lib/admin/catalogue";
-import { GitHubError } from "@/lib/admin/github";
+import { StoreError } from "@/lib/admin/store";
 import { codesUsedByBundles } from "@/lib/equipment-validate";
 import { EQUIPMENT_BUNDLES } from "@/data/equipment";
 import type { EquipmentSourceRow, Rate, RatePeriod } from "@/data/types";
@@ -14,10 +14,11 @@ export async function GET(req: NextRequest) {
   if (!auth.ok) return auth.response;
 
   try {
-    const { data, sha, readOnly } = await loadCatalogue();
+    const { data, version, seeded, readOnly } = await loadCatalogue();
     return NextResponse.json({
       rows: data.rows,
-      sha,
+      version,
+      seeded,
       readOnly,
       // The panel greys out the delete button for these instead of letting the
       // save fail: a bundle naming missing gear silently breaks bookings.
@@ -86,7 +87,7 @@ export async function PUT(req: NextRequest) {
   const auth = requireAdmin(req);
   if (!auth.ok) return auth.response;
 
-  let body: { rows?: unknown; sha?: unknown; message?: unknown };
+  let body: { rows?: unknown; version?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -96,13 +97,9 @@ export async function PUT(req: NextRequest) {
   if (!Array.isArray(body.rows)) {
     return NextResponse.json({ error: "rows must be an array" }, { status: 400 });
   }
-  const sha = str(body.sha, 100);
-  if (!sha) {
-    return NextResponse.json(
-      { error: "Missing sha — reload the page and try again" },
-      { status: 400 }
-    );
-  }
+  // An empty version is legitimate: it means "I was editing the seed", and
+  // the store only accepts it while nothing has been saved.
+  const version = typeof body.version === "string" ? body.version : "";
 
   const rows = body.rows.map(parseRow);
 
@@ -125,13 +122,8 @@ export async function PUT(req: NextRequest) {
       );
     }
 
-    const { commit } = await saveCatalogue({
-      rows,
-      previous: data,
-      sha,
-      message: str(body.message, 200) || `admin: update equipment (${rows.length} items)`,
-    });
-    return NextResponse.json({ ok: true, commit });
+    const saved = await saveCatalogue({ rows, previous: data, version });
+    return NextResponse.json({ ok: true, version: saved.version });
   } catch (err) {
     return errorResponse(err);
   }
@@ -143,7 +135,7 @@ function errorResponse(err: unknown): NextResponse {
     // time would be miserable.
     return NextResponse.json({ error: "Rejected", errors: err.errors }, { status: 400 });
   }
-  if (err instanceof GitHubError) {
+  if (err instanceof StoreError) {
     return NextResponse.json({ error: err.message }, { status: err.status });
   }
   console.error("[ADMIN] equipment route failed", err);

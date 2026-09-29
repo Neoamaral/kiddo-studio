@@ -18,13 +18,17 @@ import path from "node:path";
 import source from "../src/data/equipment.source.json";
 import {
   EQUIPMENT_BUNDLES,
-  EQUIPMENT_CATALOGUE,
   MAPPED_CATEGORIES,
+  deriveCatalogue,
 } from "../src/data/equipment";
 import { validateCatalogue } from "../src/lib/equipment-validate";
 import type { EquipmentSource } from "../src/data/types";
 
 const data = source as EquipmentSource;
+
+// This script validates the file in the repository — the seed. What the admin
+// panel saves is validated on its own way in, by the same rules.
+const EQUIPMENT_CATALOGUE = deriveCatalogue(data.rows).categories;
 
 const { errors, warnings } = validateCatalogue(data, EQUIPMENT_BUNDLES);
 

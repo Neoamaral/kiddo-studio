@@ -10,17 +10,8 @@ import {
   kiddoColors,
 } from "@/components/kiddo-assets";
 import { useIsMobile } from "@/hooks/useIsMobile";
-import {
-  ADDONS,
-  DURATION_BY_ID,
-  FAQ,
-  OVERTIME,
-  PACKAGES,
-  STUDIO_DAY,
-  WEEKEND_BADGE,
-  WEEKEND_MULTIPLIER,
-  entryPrice,
-} from "@/data/pricing";
+import type { PricingView } from "@/data/pricing";
+import { entryPrice } from "@/data/pricing";
 import { TICKET_THEMES } from "./ticketTheme";
 import { formatRate } from "@/lib/money";
 
@@ -32,7 +23,21 @@ const monoXs: React.CSSProperties = {
   textTransform: "uppercase",
 };
 
-export default function PricingPageClient() {
+export default function PricingPageClient({ pricing }: { pricing: PricingView }) {
+  // Everything below used to be read from module-level constants. It now
+  // arrives as a prop, because the rate card is editable and a build-time
+  // import would show whatever was true when the site was last deployed.
+  const {
+    packages: PACKAGES,
+    addons: ADDONS,
+    faq: FAQ,
+    durationById: DURATION_BY_ID,
+    overtime: OVERTIME,
+    studioDay: STUDIO_DAY,
+    weekendBadge: WEEKEND_BADGE,
+    weekendMultiplier: WEEKEND_MULTIPLIER,
+  } = pricing;
+
   const isMobile = useIsMobile();
   const [billing, setBilling] = useState<"WEEKDAY" | "WEEKEND">("WEEKDAY");
   const mult = billing === "WEEKEND" ? WEEKEND_MULTIPLIER : 1;
@@ -65,7 +70,7 @@ export default function PricingPageClient() {
             userSelect: "none",
           }}
         >
-          {entryPrice()}€
+          {entryPrice(PACKAGES)}€
         </span>
 
         {/* TapeStrip decoration */}
