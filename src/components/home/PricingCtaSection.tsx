@@ -25,10 +25,10 @@ export default function PricingCtaSection() {
               className="font-display text-kiddo-black"
               style={{ fontSize: "clamp(2rem,3.5vw,3.5rem)", lineHeight: 1 }}
             >
-              READY TO CREATE SOMETHING
+              MAKE IT
             </h2>
             <HandwrittenWord
-              text="WEIRD?"
+              text="REAL"
               color={kiddoColors.black}
               fontSize="clamp(2.5rem,4vw,4rem)"
             />

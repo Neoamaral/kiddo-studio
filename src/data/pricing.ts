@@ -143,11 +143,18 @@ export const ADDONS: readonly Addon[] = [
 ];
 
 /**
- * Homepage CTA rows. Order is intentional (half day, full day, hourly) and
- * differs from the ticket order. `duration` is blank for hourly — the homepage
- * hides the parenthetical when it is empty.
+ * Homepage CTA rows — a teaser, not the full table; "SEE ALL PRICING" carries
+ * the rest.
+ *
+ * Hourly used to be the third row and was dropped by request. It is still a
+ * tier: this list is the ONLY thing that changed, so /pricing, quote.ts and
+ * spaces.ts still see it.
+ *
+ * `duration` is blank whenever a tier has no fixed hours, and the homepage
+ * hides the parenthetical when it is empty. Both rows below do have hours, so
+ * that guard is currently inert — it is kept for the tiers that do not (md).
  */
-export const HOME_PRICING_ROWS = (["hd", "fd", "h"] as const).map((id) => {
+export const HOME_PRICING_ROWS = (["hd", "fd"] as const).map((id) => {
   const t = TIER_BY_ID[id];
   return {
     title: t.name,
