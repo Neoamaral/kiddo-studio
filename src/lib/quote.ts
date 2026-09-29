@@ -6,9 +6,19 @@
  * and could silently disagree.
  */
 
-import type { Euros, TierId } from "@/data/types";
+import type { Euros } from "@/data/types";
+import type { ISODate } from "@/lib/date";
 import { ADDON_OPTIONS, slotById } from "@/data/booking";
-import { TIER_BY_ID } from "@/data/pricing";
+import {
+  DEFAULT_DURATION_ID,
+  DEFAULT_PACKAGE_ID,
+  PACKAGE_BY_ID,
+  packageById,
+  packagePrice,
+  vatOf,
+  withVat,
+} from "@/data/pricing";
+import { surchargeMultiplier, surchargeReason, type SurchargeReason } from "@/lib/surcharge";
 import { spaceById } from "@/data/spaces";
 import { EQUIPMENT_BUNDLES, bundleAmount, itemByCode } from "@/data/equipment";
 import { rateAmount } from "@/lib/money";
@@ -16,6 +26,14 @@ import { rateAmount } from "@/lib/money";
 export interface QuoteInput {
   slotId: string | null;
   spaceId: string | null;
+  /** Which gear package. Falls back to the cheapest before one is picked. */
+  packageId?: string | null;
+  /**
+   * The booked date, "YYYY-MM-DD". Drives the weekend / public-holiday
+   * surcharge. Absent means no surcharge — a quote with no date yet is a
+   * weekday quote, which is what the empty summary panel shows.
+   */
+  date?: ISODate | null;
   /** Ids of selected add-ons. Unknown ids are reported, not thrown on. */
   addonIds: readonly string[];
   /**
@@ -44,22 +62,26 @@ export interface EquipmentLine extends QuoteLine {
   unitAmount: Euros;
 }
 
-/**
- * Tier quoted before a slot is picked. The summary panel has always shown
- * "Base · Half day — 140€" on an empty selection; keeping that explicit here
- * stops it from being re-invented as a ternary somewhere else.
- */
-const DEFAULT_TIER_ID: TierId = "hd";
-
 export interface Quote {
-  /** Always present — falls back to the half-day tier before a slot is picked. */
+  /** Always present — falls back to the cheapest half day before a slot is picked. */
   base: QuoteLine;
   space: QuoteLine | null;
+  /**
+   * The +20% on studio time, when the date is a weekend or a public holiday.
+   * A separate line rather than a bigger `base` so the client can see WHY the
+   * price moved — a silently larger number reads as a mistake.
+   */
+  surcharge: (QuoteLine & { reason: SurchargeReason }) | null;
   addons: readonly QuoteLine[];
   /** One line per gear bundle preset. */
   bundles: readonly QuoteLine[];
   /** One line per individually rented item; qty is folded into the amount. */
   equipment: readonly EquipmentLine[];
+  /** Everything above, EXCLUDING VAT. */
+  subtotal: Euros;
+  /** VAT on the subtotal. */
+  vat: Euros;
+  /** What the client actually pays: subtotal + vat. */
   total: Euros;
   /** Submitted ids that matched no slot/space/add-on. The API rejects on these. */
   unknownIds: readonly string[];
@@ -74,11 +96,14 @@ export function computeQuote(input: QuoteInput): Quote {
   const space = spaceById(input.spaceId);
   if (input.spaceId && !space) unknownIds.push(input.spaceId);
 
-  const tier = TIER_BY_ID[slot?.tierId ?? DEFAULT_TIER_ID];
+  const pkg = packageById(input.packageId) ?? PACKAGE_BY_ID[DEFAULT_PACKAGE_ID];
+  if (input.packageId && !packageById(input.packageId)) unknownIds.push(input.packageId);
+
+  const durationId = slot?.durationId ?? DEFAULT_DURATION_ID;
   const base: QuoteLine = {
-    id: slot?.id ?? DEFAULT_TIER_ID,
-    label: slot?.label ?? tier.name,
-    amount: rateAmount(tier.rate) ?? 0,
+    id: `${pkg.id}-${durationId}`,
+    label: `${pkg.name} · ${slot?.label ?? "HALF DAY"}`,
+    amount: packagePrice(pkg, durationId),
   };
 
   const spaceLine: QuoteLine | null =
@@ -155,12 +180,43 @@ export function computeQuote(input: QuoteInput): Quote {
     });
   }
 
-  const total =
-    base.amount +
-    (spaceLine?.amount ?? 0) +
+  /* ── Weekend / holiday surcharge ────────────────────────────────────────
+   * Applies to STUDIO TIME only — the package and the space upcharge. Not to
+   * equipment or services: a lens does not cost the studio more on a Saturday,
+   * and a coordinator is quoted as a day rate either way. "All applicable
+   * rates" in the rate card is read as "the rates that scale with the day".
+   */
+  const studioTime = base.amount + (spaceLine?.amount ?? 0);
+  const multiplier = surchargeMultiplier(input.date);
+  const surchargeAmount = Math.round(studioTime * multiplier) - studioTime;
+  const reason = surchargeReason(input.date);
+  const surcharge =
+    surchargeAmount > 0 && reason
+      ? {
+          id: "surcharge",
+          label: reason === "holiday" ? "Public holiday" : "Weekend",
+          amount: surchargeAmount,
+          reason,
+        }
+      : null;
+
+  const subtotal =
+    studioTime +
+    (surcharge?.amount ?? 0) +
     addons.reduce((sum, a) => sum + a.amount, 0) +
     bundles.reduce((sum, b) => sum + b.amount, 0) +
     equipment.reduce((sum, e) => sum + e.amount, 0);
 
-  return { base, space: spaceLine, addons, bundles, equipment, total, unknownIds };
+  return {
+    base,
+    space: spaceLine,
+    surcharge,
+    addons,
+    bundles,
+    equipment,
+    subtotal,
+    vat: vatOf(subtotal),
+    total: withVat(subtotal),
+    unknownIds,
+  };
 }

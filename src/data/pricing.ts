@@ -1,15 +1,48 @@
 /**
- * Studio rental pricing — tiers, add-ons and FAQ.
+ * Studio rental pricing — Phase 1 "Soft Launch".
  *
  * HAND-AUTHORED. This file is NOT part of the Notion equipment sync: the Notion
  * page covers equipment rental only. A sync must never overwrite these rates.
  * See src/data/equipment.ts for the synced side.
+ *
+ * EVERY AMOUNT HERE EXCLUDES VAT. The rate card quotes "€180 + IVA", so the
+ * numbers are stored exactly as the studio wrote them and VAT is added at the
+ * edge — see withVat() below and the booking summary. Storing VAT-inclusive
+ * numbers would mean rounding twice and drifting from the studio's own sheet.
  */
 
-import type { Addon, PricingTier, Rate, TierId } from "./types";
-import { rateAmount } from "@/lib/money";
+import type {
+  Addon,
+  Duration,
+  DurationId,
+  Euros,
+  PackageId,
+  StudioPackage,
+} from "./types";
 
-/** Weekend surcharge applied to every scalable tier. */
+/** Portugal, standard rate. */
+export const VAT_RATE = 0.23;
+
+/**
+ * Standard studio hours. Anything before `open` or after `close` bills at the
+ * off-hours overtime rate, whatever the day — which is why every TIME_SLOT in
+ * booking.ts sits inside this window.
+ */
+export const STUDIO_DAY = { open: "09:00", close: "19:00" } as const;
+
+/**
+ * Charged after the fact, never booked in advance: overtime is "any time
+ * extending past the agreed wrap time", which nobody can select up front.
+ * Euros per hour, excluding VAT.
+ */
+export const OVERTIME = {
+  /** Past the agreed wrap, inside standard hours. */
+  standard: 35,
+  /** Before STUDIO_DAY.open or after STUDIO_DAY.close, any day. */
+  offHours: 55,
+} as const;
+
+/** Weekend and public-holiday surcharge. */
 export const WEEKEND_MULTIPLIER = 1.2;
 
 /** "+20% APPLIED" — derived so the badge can never contradict the maths. */
@@ -17,99 +50,96 @@ export const WEEKEND_BADGE = `+${Math.round(
   (WEEKEND_MULTIPLIER - 1) * 100
 )}% APPLIED`;
 
-export const PRICING_TIERS: readonly PricingTier[] = [
+export const DURATIONS: readonly Duration[] = [
+  { id: "hd", label: "HALF DAY", hours: 4 },
+  { id: "fd", label: "FULL DAY", hours: 10 },
+];
+
+export const DURATION_BY_ID: Record<DurationId, Duration> = Object.fromEntries(
+  DURATIONS.map((d) => [d.id, d])
+) as Record<DurationId, Duration>;
+
+export const PACKAGES: readonly StudioPackage[] = [
   {
-    id: "h",
-    name: "HOURLY",
-    rate: { kind: "fixed", amount: 40, per: "hour" },
-    min: "MIN. 2H",
-    tag: "QUICK PLAY",
-    scalable: true,
-    hours: null,
-    bullets: [
-      "Full access to the space",
-      "Basic lighting kit included",
+    id: "base",
+    name: "BASE HIRE",
+    tag: "PACKAGE 1",
+    rates: { fd: 180, hd: 110 },
+    includes: [
+      "The studio space",
+      "Heavy grip package — stands, sandbags, apple boxes",
+      "3× Amaran Pano 120s, rigged to wash the background",
       "WiFi · coffee · sound",
-      "+1 free prep hour",
     ],
-    cta: "BOOK BY THE HOUR",
-    homeBlurb: "Need less time?",
+    equipmentListUrl:
+      "https://lightroom.adobe.com/shares/52db7e420609440fa469d6087a7dd491",
+    cta: "BOOK BASE HIRE",
+    homeBlurb: "Space, grip and background wash.",
   },
   {
-    id: "hd",
-    name: "HALF DAY",
-    rate: { kind: "fixed", amount: 140, per: "halfDay" },
-    min: "4 HOURS",
-    tag: "MOST FLEXIBLE",
-    scalable: true,
-    hours: 4,
-    bullets: [
-      "Everything in Hourly",
-      "Cyclorama OR Black Box",
-      "Free parking spot",
-      "Light setup support",
-    ],
-    cta: "BOOK HALF DAY",
-    homeBlurb: "Perfect for quick shoots.",
-  },
-  {
-    id: "fd",
-    name: "FULL DAY",
-    rate: { kind: "fixed", amount: 280, per: "day" },
-    min: "8 HOURS",
-    tag: "MOST POPULAR",
+    id: "full",
+    name: "FULL HOUSE",
+    tag: "PACKAGE 2",
     featured: true,
-    scalable: true,
-    hours: 8,
-    bullets: [
-      "Both spaces · all day",
-      "Prop room access",
-      "Lunch arranged on request",
-      "Late checkout possible",
+    rates: { fd: 260, hd: 160 },
+    includes: [
+      "Everything in Base Hire",
+      "Aputure Storm 400 — key light",
+      "Amaran 200 Bi — fill / hair light",
+      "Our softboxes",
     ],
-    cta: "BOOK FULL DAY",
-    homeBlurb: "Time to create.",
-  },
-  {
-    id: "md",
-    name: "MULTI-DAY",
-    rate: { kind: "from", amount: 700, per: "day" },
-    min: "3+ DAYS",
-    tag: "BIG BUILDS",
-    /** Quoted custom, so the weekend multiplier does not apply. */
-    scalable: false,
-    hours: null,
-    bullets: [
-      "Custom rates",
-      "Dedicated coordinator",
-      "Equipment included",
-      "Build days available",
-    ],
-    cta: "ASK FOR QUOTE",
-    homeBlurb: "Big builds and multi-day productions.",
+    equipmentListUrl:
+      "https://lightroom.adobe.com/shares/b45c45161cc34b3f802b33105aafc053",
+    cta: "BOOK FULL HOUSE",
+    homeBlurb: "The full lighting kit, ready to shoot.",
   },
 ];
 
-export const TIER_BY_ID: Record<TierId, PricingTier> = Object.fromEntries(
-  PRICING_TIERS.map((t) => [t.id, t])
-) as Record<TierId, PricingTier>;
+export const PACKAGE_BY_ID: Record<PackageId, StudioPackage> = Object.fromEntries(
+  PACKAGES.map((p) => [p.id, p])
+) as Record<PackageId, StudioPackage>;
 
 /**
- * The unit shown beside the giant price on a ticket: "€/h" · "€" · "€+".
- *
- * Studio tiers quote the day and half-day rates BARE ("280€", not "280€/day") —
- * only the hourly rate carries a period. That differs from the equipment ledger,
- * which always shows "/day", so this does not reuse periodSuffix().
+ * The package quoted before one is picked, and the duration quoted before a
+ * slot is picked. The summary panel has always shown a price on an empty
+ * selection; naming the defaults here stops them being re-invented as ternaries
+ * somewhere else.
  */
-export function tierUnit(rate: Rate): string {
-  const per = rate.kind === "fixed" || rate.kind === "from" ? rate.per : "unit";
-  return `€${per === "hour" ? "/h" : ""}${rate.kind === "from" ? "+" : ""}`;
+export const DEFAULT_PACKAGE_ID: PackageId = "base";
+export const DEFAULT_DURATION_ID: DurationId = "hd";
+
+export function packageById(id: string | null | undefined): StudioPackage | undefined {
+  return id ? PACKAGES.find((p) => p.id === id) : undefined;
 }
 
-/** Ticket price after the weekend multiplier. Non-scalable tiers pass through. */
-export function tierDisplayPrice(tier: PricingTier, multiplier: number): number {
-  const base = rateAmount(tier.rate) ?? 0;
-  return tier.scalable ? Math.round(base * multiplier) : base;
+/** Base studio price, EXCLUDING VAT. */
+export function packagePrice(pkg: StudioPackage, durationId: DurationId): Euros {
+  return pkg.rates[durationId];
+}
+
+/** Cheapest way into the studio — drives the pricing hero and "FROM" copy. */
+export function entryPrice(): Euros {
+  return Math.min(...PACKAGES.flatMap((p) => Object.values(p.rates)));
+}
+
+/** Cheapest full day, before any space upcharge. */
+export function cheapestFullDay(): Euros {
+  return Math.min(...PACKAGES.map((p) => p.rates.fd));
+}
+
+/* ── VAT ──────────────────────────────────────────────────────────────────
+ * Rounded to whole euros, because the site has never rendered cents. Both
+ * helpers round the SAME way so vatOf(n) + n always equals withVat(n) — if
+ * they rounded independently the summary could show 180 + 41 = 222 next to a
+ * total of 221.
+ */
+
+export function withVat(net: Euros): Euros {
+  return Math.round(net * (1 + VAT_RATE));
+}
+
+export function vatOf(net: Euros): Euros {
+  return withVat(net) - Math.round(net);
 }
 
 export const ADDONS: readonly Addon[] = [
@@ -144,47 +174,41 @@ export const ADDONS: readonly Addon[] = [
 
 /**
  * Homepage CTA rows — a teaser, not the full table; "SEE ALL PRICING" carries
- * the rest.
- *
- * Hourly used to be the third row and was dropped by request. It is still a
- * tier: this list is the ONLY thing that changed, so /pricing, quote.ts and
- * spaces.ts still see it.
- *
- * `duration` is blank whenever a tier has no fixed hours, and the homepage
- * hides the parenthetical when it is empty. Both rows below do have hours, so
- * that guard is currently inert — it is kept for the tiers that do not (md).
+ * the rest. One row per package, quoting the full day.
  */
-export const HOME_PRICING_ROWS = (["hd", "fd"] as const).map((id) => {
-  const t = TIER_BY_ID[id];
-  return {
-    title: t.name,
-    duration: t.hours ? `${t.hours} HOURS` : "",
-    price: `${rateAmount(t.rate) ?? 0}${tierUnit(t.rate)}`,
-    desc: t.homeBlurb,
-    highlight: !!t.featured,
-  };
-});
+export const HOME_PRICING_ROWS = PACKAGES.map((p) => ({
+  title: p.name,
+  duration: DURATION_BY_ID.fd.label,
+  price: `${p.rates.fd}€`,
+  desc: p.homeBlurb,
+  highlight: !!p.featured,
+}));
 
 export const FAQ = [
   {
     q: "What's included in studio rental?",
-    a: "WiFi, coffee, basic lighting, sound system, climate control, and a friendly human on call.",
+    a: "WiFi, coffee, sound, climate control, the heavy grip package, and a friendly human on call. Lighting depends on the package you pick.",
   },
   {
     q: "Do you offer crew?",
     a: "Yes. We have a roster of trusted DPs, gaffers, makeup artists and stylists.",
   },
   {
+    q: "What happens if we run over?",
+    a: `Overtime is billed automatically at ${OVERTIME.standard}€/h + IVA past the agreed wrap time. Before ${STUDIO_DAY.open} or after ${STUDIO_DAY.close} it is ${OVERTIME.offHours}€/h + IVA, whatever the day.`,
+  },
+  {
+    q: "Do weekends cost more?",
+    a: `Yes. Saturdays, Sundays and public holidays carry a +${Math.round(
+      (WEEKEND_MULTIPLIER - 1) * 100
+    )}% surcharge on studio time.`,
+  },
+  {
     q: "Can I store gear overnight?",
-    a: "Multi-day bookings include overnight storage. Single-day shoots can lock-up for a small fee.",
+    a: "Overnight set hold is an add-on. Ask us if you need several days — we'll quote it.",
   },
   {
     q: "Cancellation policy?",
     a: "Full refund up to 7 days before. 50% within 7 days. We're reasonable — talk to us.",
-  },
-  { q: "Do you provide catering?", a: "We don't, but we know who to call." },
-  {
-    q: "How early can I arrive to set up?",
-    a: "Pre-shoot prep hour included. Earlier access available at 30€/h.",
   },
 ] as const;

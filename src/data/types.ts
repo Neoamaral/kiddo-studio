@@ -4,8 +4,9 @@
  * OWNERSHIP BOUNDARY
  *   - Equipment rental rates come from Notion ("EQUIP RENTAL PRICES — WEB")
  *     via src/data/equipment.source.json. Do not hand-edit those.
- *   - Studio tiers, add-ons and spaces are hand-authored in src/data/pricing.ts
- *     and src/data/spaces.ts. A Notion sync must never clobber them.
+ *   - Studio packages, add-ons and spaces are hand-authored in
+ *     src/data/pricing.ts and src/data/spaces.ts. A Notion sync must never
+ *     clobber them.
  */
 
 /** Whole euros. The site has never rendered cents; keep it that way. */
@@ -117,23 +118,40 @@ export interface EquipmentSource {
 
 /* ── Studio pricing ──────────────────────────────────────────────────────── */
 
-export type TierId = "h" | "hd" | "fd" | "md";
+/**
+ * Phase 1 "Soft Launch" sells a MATRIX, not a ladder: which kit you get
+ * (package) times how long you get it (duration). The old single `TierId` could
+ * not express that — 180€ is not "a tier", it is Base Hire for a full day.
+ */
+export type PackageId = "base" | "full";
+export type DurationId = "hd" | "fd";
 
-export interface PricingTier {
-  id: TierId;
+/** How much studio time a hire buys. */
+export interface Duration {
+  id: DurationId;
+  /** "FULL DAY" */
+  label: string;
+  hours: number;
+}
+
+export interface StudioPackage {
+  id: PackageId;
+  /** "BASE HIRE" */
   name: string;
-  rate: Rate;
-  /** Minimum commitment copy, e.g. "4 HOURS". */
-  min: string;
+  /** "PACKAGE 1" */
   tag: string;
   featured?: boolean;
-  /** Whether the weekend multiplier applies. Replaces `t.id !== "md"`. */
-  scalable: boolean;
-  /** Hours of studio access this tier buys; drives the booking base price. */
-  hours: number | null;
-  bullets: readonly string[];
+  /**
+   * Euros EXCLUDING VAT, by duration. Every studio price on the site is
+   * derived from this — there is no second place a rate is written down.
+   */
+  rates: Readonly<Record<DurationId, Euros>>;
+  /** What the hire includes, one bullet per line. */
+  includes: readonly string[];
+  /** Lightroom gallery showing the exact kit. */
+  equipmentListUrl: string;
   cta: string;
-  /** Short copy for the homepage 3-row summary. */
+  /** Short copy for the homepage summary rows. */
   homeBlurb: string;
 }
 
@@ -153,7 +171,7 @@ export interface StudioSpace {
   label: string;
   desc: string;
   img: string;
-  /** Euros added to any booking base price. Drives "+40€" AND "FROM 320€/DAY". */
+  /** Euros added to any booking base price. Drives "+40€" AND "FROM 220€/DAY". */
   upcharge: Euros;
   /** Selectable in the booking flow? (prop room / creative area are not) */
   bookable: boolean;
@@ -175,6 +193,9 @@ export interface TimeSlot {
   /** Local wall clock, "HH:MM", exclusive. */
   endLocal: string;
   note: string;
-  /** Which pricing tier this slot bills at. Kills `slot === "fd" ? 280 : 140`. */
-  tierId: TierId;
+  /**
+   * How much studio time this slot buys. Combined with the chosen package it
+   * gives the base price, so no component ever hardcodes one.
+   */
+  durationId: DurationId;
 }

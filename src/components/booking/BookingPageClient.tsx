@@ -28,10 +28,11 @@ import {
   slotTimeLabel,
 } from "@/data/booking";
 import { BOOKABLE_SPACES } from "@/data/spaces";
+import { PACKAGES, packageById } from "@/data/pricing";
 import type { DateBounds } from "@/data/availability";
 import { equipmentRemaining, slotTooSoon, slotState } from "@/data/availability";
 import { computeQuote } from "@/lib/quote";
-import { eurSigned, rateAmount } from "@/lib/money";
+import { eur, eurSigned, rateAmount } from "@/lib/money";
 import type { ISODate } from "@/lib/date";
 import { addDays, formatDateHuman, monthKey, parseISO, todayInLisbon } from "@/lib/date";
 import StepCard, { StepNav } from "./StepCard";
@@ -93,6 +94,7 @@ export default function BookingPageClient() {
 
   const [activeStep, setActiveStep] = useState(0);
   const [spaceId, setSpaceId] = useState("");
+  const [packageId, setPackageId] = useState("");
   const [date, setDate] = useState<ISODate | null>(null);
   const [slotId, setSlotId] = useState("");
   const [addons, setAddons] = useState<Record<string, boolean>>(emptyAddonState);
@@ -149,6 +151,7 @@ export default function BookingPageClient() {
 
   const selection: BookingSelection = {
     spaceId,
+    packageId,
     date,
     slotId,
     name: formData.name,
@@ -160,11 +163,15 @@ export default function BookingPageClient() {
       computeQuote({
         slotId,
         spaceId,
+        packageId,
+        // The date drives the weekend / holiday surcharge, so it has to be in
+        // the quote input — not just in the submitted payload.
+        date,
         addonIds: selectedAddonIds(addons),
         equipment,
         bundleIds,
       }),
-    [slotId, spaceId, addons, equipment, bundleIds]
+    [slotId, spaceId, packageId, date, addons, equipment, bundleIds]
   );
 
   /* ── Setters that invalidate downstream choices ────────────────────────── */
@@ -173,6 +180,11 @@ export default function BookingPageClient() {
     setSpaceId(id);
     // A slot free in one room may be taken in the other.
     setSlotId("");
+    setActiveStep(stepIndex("package"));
+  };
+
+  const choosePackage = (id: string) => {
+    setPackageId(id);
     setActiveStep(stepIndex("date"));
   };
 
@@ -220,6 +232,7 @@ export default function BookingPageClient() {
           date,
           slot: slotId,
           space: spaceId,
+          package: packageId,
           addons,
           equipment,
           bundleIds,
@@ -288,6 +301,7 @@ export default function BookingPageClient() {
 
   const summaries: Record<string, string | undefined> = {
     space: spaceObj?.label,
+    package: packageById(packageId)?.name,
     date: date ? formatDateHuman(date) : undefined,
     slot: slotObj?.label,
     addons: addonCount ? `${addonCount} SELECTED` : "NONE",
@@ -564,13 +578,112 @@ export default function BookingPageClient() {
                 </div>
               </StepCard>
 
-              {/* 02 — DATE */}
+              {/* 02 — PACKAGE */}
               <StepCard
                 number={stepNumber(1)}
                 label={STEPS[1].cardLabel}
                 state={stepStateFor(1)}
-                summary={summaries.date}
+                summary={summaries.package}
                 onOpen={() => goTo(1)}
+              >
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: isMobile ? "1fr" : "repeat(2,1fr)",
+                    gap: 10,
+                  }}
+                >
+                  {PACKAGES.map((pk) => {
+                    const isSelected = packageId === pk.id;
+                    return (
+                      <button
+                        key={pk.id}
+                        type="button"
+                        onClick={() => choosePackage(pk.id)}
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "flex-start",
+                          gap: 8,
+                          textAlign: "left",
+                          padding: 16,
+                          border: isSelected
+                            ? `2px solid ${kiddoColors.black}`
+                            : "2px solid rgba(0,0,0,0.12)",
+                          background: isSelected ? kiddoColors.lime : "transparent",
+                          cursor: "pointer",
+                          transition: "all 0.12s",
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontFamily: "var(--font-mono)",
+                            fontSize: 9,
+                            letterSpacing: "0.15em",
+                            textTransform: "uppercase",
+                            color: "rgba(0,0,0,0.5)",
+                          }}
+                        >
+                          {pk.tag}
+                        </span>
+                        <span
+                          style={{
+                            fontFamily: "var(--font-display)",
+                            fontSize: 22,
+                            lineHeight: 1,
+                            textTransform: "uppercase",
+                          }}
+                        >
+                          {pk.name}
+                        </span>
+                        <span
+                          style={{
+                            fontFamily: "var(--font-mono)",
+                            fontSize: 10,
+                            letterSpacing: "0.1em",
+                            color: "rgba(0,0,0,0.6)",
+                          }}
+                        >
+                          {eur(pk.rates.fd)} DAY · {eur(pk.rates.hd)} HALF · + IVA
+                        </span>
+                        <ul
+                          style={{
+                            listStyle: "none",
+                            margin: 0,
+                            padding: 0,
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 4,
+                          }}
+                        >
+                          {pk.includes.map((b) => (
+                            <li
+                              key={b}
+                              style={{
+                                fontFamily: "var(--font-body)",
+                                fontSize: 11,
+                                lineHeight: 1.45,
+                                color: "rgba(0,0,0,0.65)",
+                              }}
+                            >
+                              — {b}
+                            </li>
+                          ))}
+                        </ul>
+                      </button>
+                    );
+                  })}
+                </div>
+                <StepNav onBack={() => goTo(0)} />
+              </StepCard>
+
+              {/* 03 — DATE */}
+              <StepCard
+                number={stepNumber(2)}
+                label={STEPS[2].cardLabel}
+                state={stepStateFor(2)}
+                summary={summaries.date}
+                onOpen={() => goTo(2)}
               >
                 <BookingCalendar
                   value={date}
@@ -582,16 +695,16 @@ export default function BookingPageClient() {
                   month={month}
                   onMonthChange={setMonth}
                 />
-                <StepNav onBack={() => goTo(0)} />
+                <StepNav onBack={() => goTo(1)} />
               </StepCard>
 
-              {/* 03 — SLOT */}
+              {/* 04 — SLOT */}
               <StepCard
-                number={stepNumber(2)}
-                label={STEPS[2].cardLabel}
-                state={stepStateFor(2)}
+                number={stepNumber(3)}
+                label={STEPS[3].cardLabel}
+                state={stepStateFor(3)}
                 summary={summaries.slot}
-                onOpen={() => goTo(2)}
+                onOpen={() => goTo(3)}
               >
                 <div
                   style={{
@@ -670,16 +783,16 @@ export default function BookingPageClient() {
                     );
                   })}
                 </div>
-                <StepNav onBack={() => goTo(1)} />
+                <StepNav onBack={() => goTo(2)} />
               </StepCard>
 
-              {/* 04 — ADD-ONS */}
+              {/* 05 — ADD-ONS */}
               <StepCard
-                number={stepNumber(3)}
-                label={STEPS[3].cardLabel}
-                state={stepStateFor(3)}
+                number={stepNumber(4)}
+                label={STEPS[4].cardLabel}
+                state={stepStateFor(4)}
                 summary={summaries.addons}
-                onOpen={() => goTo(3)}
+                onOpen={() => goTo(4)}
               >
                 <div
                   style={{
@@ -757,16 +870,16 @@ export default function BookingPageClient() {
                     );
                   })}
                 </div>
-                <StepNav onBack={() => goTo(2)} onContinue={() => goTo(4)} />
+                <StepNav onBack={() => goTo(3)} onContinue={() => goTo(5)} />
               </StepCard>
 
-              {/* 05 — EQUIPMENT */}
+              {/* 06 — EQUIPMENT */}
               <StepCard
-                number={stepNumber(4)}
-                label={STEPS[4].cardLabel}
-                state={stepStateFor(4)}
+                number={stepNumber(5)}
+                label={STEPS[5].cardLabel}
+                state={stepStateFor(5)}
                 summary={summaries.equipment}
-                onOpen={() => goTo(4)}
+                onOpen={() => goTo(5)}
               >
                 <EquipmentPicker
                   value={equipment}
@@ -778,16 +891,16 @@ export default function BookingPageClient() {
                   }
                   isMobile={isMobile}
                 />
-                <StepNav onBack={() => goTo(3)} onContinue={() => goTo(5)} />
+                <StepNav onBack={() => goTo(4)} onContinue={() => goTo(6)} />
               </StepCard>
 
-              {/* 06 — DETAILS */}
+              {/* 07 — DETAILS */}
               <StepCard
-                number={stepNumber(5)}
-                label={STEPS[5].cardLabel}
-                state={stepStateFor(5)}
+                number={stepNumber(6)}
+                label={STEPS[6].cardLabel}
+                state={stepStateFor(6)}
                 summary={summaries.details}
-                onOpen={() => goTo(5)}
+                onOpen={() => goTo(6)}
               >
                 <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
                   <div>
@@ -870,7 +983,7 @@ export default function BookingPageClient() {
                     />
                   </div>
                 </div>
-                <StepNav onBack={() => goTo(4)} />
+                <StepNav onBack={() => goTo(5)} />
               </StepCard>
             </div>
 

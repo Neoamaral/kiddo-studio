@@ -68,6 +68,9 @@ export default function PricingCtaSection() {
                 {row.price}
               </span>
               <span className="font-body text-xs text-black/40 text-right max-w-[90px] leading-snug">
+                <span className="font-mono text-[9px] tracking-widest uppercase block mb-1">
+                  + IVA
+                </span>
                 {row.desc}
               </span>
             </div>

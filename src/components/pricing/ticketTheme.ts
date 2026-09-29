@@ -1,7 +1,7 @@
-import type { TierId } from "@/data/types";
+import type { PackageId } from "@/data/types";
 
 /**
- * Presentation for the pricing tickets, keyed by tier id.
+ * Presentation for the pricing tickets, keyed by package id.
  *
  * Kept out of src/data/pricing.ts so the data file holds prices, not colours.
  * The literals stay raw here (`"#fff"`, not kiddoColors.white) because these
@@ -18,9 +18,7 @@ export interface TicketTheme {
   limeAccent: boolean;
 }
 
-export const TICKET_THEMES: Record<TierId, TicketTheme> = {
-  h: { bg: "#fff", text: "#1A1A1A", accent: "#C8E820", dark: false, limeAccent: true },
-  hd: { bg: "#F2EFE6", text: "#1A1A1A", accent: "#1A1A1A", dark: false, limeAccent: false },
-  fd: { bg: "#C8E820", text: "#1A1A1A", accent: "#1A1A1A", dark: false, limeAccent: false },
-  md: { bg: "#111111", text: "#fff", accent: "#C8E820", dark: true, limeAccent: true },
+export const TICKET_THEMES: Record<PackageId, TicketTheme> = {
+  base: { bg: "#F2EFE6", text: "#1A1A1A", accent: "#1A1A1A", dark: false, limeAccent: false },
+  full: { bg: "#C8E820", text: "#1A1A1A", accent: "#1A1A1A", dark: false, limeAccent: false },
 };

@@ -43,20 +43,22 @@ check("both is not a room of its own", resourcesForSpace("both").length, 2);
 const DAY = "2026-11-10"; // winter, Lisbon is UTC+0
 const at = (hhmm: string) => zonedInstant(DAY, hhmm);
 
-// MORNING starts 08:00, so the cutoff is 06:00.
-check("at 05:59, morning is still bookable", slotTooSoon(DAY, "am", at("05:59")), false);
-check("at 06:01, morning is inside the window", slotTooSoon(DAY, "am", at("06:01")), true);
-check("at 08:30, morning has begun — still closed", slotTooSoon(DAY, "am", at("08:30")), true);
+// MORNING starts 09:00, so the cutoff is 07:00.
+check("at 06:59, morning is still bookable", slotTooSoon(DAY, "am", at("06:59")), false);
+check("at 07:01, morning is inside the window", slotTooSoon(DAY, "am", at("07:01")), true);
+check("at 09:30, morning has begun — still closed", slotTooSoon(DAY, "am", at("09:30")), true);
 
-// AFTERNOON starts 13:00 -> cutoff 11:00.
-check("at 10:59, afternoon is bookable", slotTooSoon(DAY, "pm", at("10:59")), false);
-check("at 11:30, afternoon is closed", slotTooSoon(DAY, "pm", at("11:30")), true);
+// AFTERNOON starts 14:00 -> cutoff 12:00.
+check("at 11:59, afternoon is bookable", slotTooSoon(DAY, "pm", at("11:59")), false);
+check("at 12:30, afternoon is closed", slotTooSoon(DAY, "pm", at("12:30")), true);
 // The morning being gone must not close the afternoon.
-check("at 09:00 the afternoon is unaffected", slotTooSoon(DAY, "pm", at("09:00")), false);
+check("at 10:00 the afternoon is unaffected", slotTooSoon(DAY, "pm", at("10:00")), false);
 
-// EVENING starts 18:00 -> cutoff 16:00.
-check("at 15:59, evening is bookable", slotTooSoon(DAY, "ev", at("15:59")), false);
-check("at 16:30, evening is closed", slotTooSoon(DAY, "ev", at("16:30")), true);
+// FULL DAY shares the 09:00 start, so it closes at the same moment as the
+// morning. That is not a coincidence to paper over — it is why 08:00 leaves
+// the afternoon as the only slot standing.
+check("at 06:59, full day is bookable", slotTooSoon(DAY, "fd", at("06:59")), false);
+check("at 08:00, full day is closed", slotTooSoon(DAY, "fd", at("08:00")), true);
 
 check("an unknown slot is never closed", slotTooSoon(DAY, "nope", at("23:00")), false);
 
@@ -64,13 +66,13 @@ check("an unknown slot is never closed", slotTooSoon(DAY, "nope", at("23:00")), 
 // Comparing wall clocks, or assuming a fixed offset, breaks exactly here.
 const SUMMER = "2026-07-10";
 check(
-  "summer 05:59 — morning still bookable",
-  slotTooSoon(SUMMER, "am", zonedInstant(SUMMER, "05:59")),
+  "summer 06:59 — morning still bookable",
+  slotTooSoon(SUMMER, "am", zonedInstant(SUMMER, "06:59")),
   false
 );
 check(
-  "summer 06:01 — morning closed",
-  slotTooSoon(SUMMER, "am", zonedInstant(SUMMER, "06:01")),
+  "summer 07:01 — morning closed",
+  slotTooSoon(SUMMER, "am", zonedInstant(SUMMER, "07:01")),
   true
 );
 
@@ -86,12 +88,12 @@ const free: MonthAvailability = {
 };
 
 check("an empty calendar leaves the slot free", slotState(DAY, "am", free, at("05:00")), "free");
-check("a slot inside the window reads busy anyway", slotState(DAY, "am", free, at("07:00")), "busy");
+check("a slot inside the window reads busy anyway", slotState(DAY, "am", free, at("08:00")), "busy");
 check("without a clock, only the calendar matters", slotState(DAY, "am", free), "free");
 
 const booked: MonthAvailability = {
   ...free,
-  days: { [DAY]: { date: DAY, slots: { am: "busy", pm: "free", ev: "free", fd: "busy" } } },
+  days: { [DAY]: { date: DAY, slots: { am: "busy", pm: "free", fd: "busy" } } },
 };
 check("a booked slot reads busy", slotState(DAY, "am", booked, at("05:00")), "busy");
 check("its neighbour stays free", slotState(DAY, "pm", booked, at("05:00")), "free");
@@ -107,8 +109,10 @@ check("the window beats degraded", slotState(DAY, "am", degraded, at("13:00")), 
 const bounds: DateBounds = { today: DAY, min: DAY, max: "2027-05-09" };
 
 check("today, well before anything, is free", dayState(DAY, free, bounds, at("05:00")), "free");
-check("today, once every slot is inside the window, is full", dayState(DAY, free, bounds, at("17:00")), "full");
-check("today with only the morning gone is partial", dayState(DAY, free, bounds, at("07:00")), "partial");
+check("today, once every slot is inside the window, is full", dayState(DAY, free, bounds, at("13:00")), "full");
+// At 08:00 the morning and the full day are both inside the window; the
+// afternoon (14:00) is not. One slot left = partial.
+check("today with morning and full day gone is partial", dayState(DAY, free, bounds, at("08:00")), "partial");
 check("yesterday is past", dayState("2026-11-09", free, bounds, at("05:00")), "past");
 check("beyond the horizon is out of range", dayState("2027-06-01", free, bounds, at("05:00")), "outOfRange");
 

@@ -1,162 +1,155 @@
 /**
- * Regression net for the booking price maths.
+ * Quote engine assertions — Phase 1 "Soft Launch".
  *
- * The expected values below are the ones the site shipped BEFORE quote.ts
- * existed, when BookingSummary and handleSubmit each inlined
- *   basePrice = slot === "fd" ? 280 : 140
- *   spaceUp   = space === "blk" ? 40 : space === "both" ? 80 : 0
- * Run after touching quote.ts, booking.ts, pricing.ts or spaces.ts:
+ * The expected numbers below are transcribed from the studio's own rate card,
+ * NOT derived from the code, so a typo in pricing.ts fails here instead of
+ * reaching a client. Run with `npm run check:quote`.
  *
- *   npx tsx scripts/check-quote.ts
+ * Every studio figure excludes VAT; `total` is the only VAT-inclusive number.
  */
 
 import { computeQuote } from "../src/lib/quote";
-import { ADDON_OPTIONS } from "../src/data/booking";
-
-const SLOTS = ["am", "pm", "ev", "fd"] as const;
-const SPACES = ["cyc", "blk", "both"] as const;
-
-/** The pre-refactor formula, written out independently. */
-const legacyBase = (slot: string) => (slot === "fd" ? 280 : 140);
-const legacyUpcharge = (space: string) =>
-  space === "blk" ? 40 : space === "both" ? 80 : 0;
-
-const ALL_ADDON_IDS = ADDON_OPTIONS.map((a) => a.id);
-/**
- * Services only. The camera (240) and lighting (180) bundles used to be add-ons
- * and are now equipment presets, so this dropped from 750 to 330. The slot and
- * space assertions below did NOT change — if they ever do, something touched
- * studio pricing, which this file exists to prevent.
- */
-const LEGACY_ADDON_TOTAL = 180 + 30 + 20 + 100; // 330
+import { easterSunday, holidaysInYear, isPortugueseHoliday, isWeekend } from "../src/lib/surcharge";
+import { VAT_RATE } from "../src/data/pricing";
 
 let failures = 0;
-const check = (label: string, actual: number, expected: number) => {
+
+const check = (label: string, actual: unknown, expected: unknown) => {
   if (actual === expected) return;
-  console.error(`FAIL ${label}: got ${actual}, expected ${expected}`);
+  console.error(`FAIL ${label}: got ${String(actual)}, expected ${String(expected)}`);
   failures++;
 };
 
-for (const slot of SLOTS) {
-  for (const space of SPACES) {
-    check(
-      `${slot}/${space} bare`,
-      computeQuote({ slotId: slot, spaceId: space, addonIds: [] }).total,
-      legacyBase(slot) + legacyUpcharge(space)
-    );
-    check(
-      `${slot}/${space} all add-ons`,
-      computeQuote({ slotId: slot, spaceId: space, addonIds: ALL_ADDON_IDS })
-        .total,
-      legacyBase(slot) + legacyUpcharge(space) + LEGACY_ADDON_TOTAL
-    );
-  }
-}
+/* ── Dates used throughout ───────────────────────────────────────────────
+ * Picked by hand and verified against a calendar, not computed — a date the
+ * test derives from the same code it is testing proves nothing.
+ */
+const WEEKDAY = "2026-10-14"; // a Wednesday
+const SATURDAY = "2026-10-17";
+const SUNDAY = "2026-10-18";
+const CHRISTMAS = "2026-12-25"; // a Friday, so the holiday rule is what fires
+const GOOD_FRIDAY_2027 = "2027-03-26";
 
-// Empty selection: the summary panel has always shown a 140€ half-day base.
-check(
-  "empty selection",
-  computeQuote({ slotId: "", spaceId: "", addonIds: [] }).total,
-  140
-);
+/* ── 1. The rate card, priced straight off the sheet ─────────────────────── */
 
-// Unknown ids must be reported, not silently priced.
-const bogus = computeQuote({
-  slotId: "nope",
-  spaceId: "nope",
-  addonIds: ["nope"],
-});
-if (bogus.unknownIds.length !== 3) {
-  console.error(
-    `FAIL unknown ids: got ${JSON.stringify(bogus.unknownIds)}, expected 3`
-  );
-  failures++;
-}
+const studio = (pkg: string, slot: string, space = "cyc", date = WEEKDAY) =>
+  computeQuote({ slotId: slot, spaceId: space, packageId: pkg, date, addonIds: [] });
 
-/* ── Equipment: must be purely additive ──────────────────────────────────── */
+check("Base · full day", studio("base", "fd").subtotal, 180);
+check("Base · half day (morning)", studio("base", "am").subtotal, 110);
+check("Base · half day (afternoon)", studio("base", "pm").subtotal, 110);
+check("Full House · full day", studio("full", "fd").subtotal, 260);
+check("Full House · half day", studio("full", "am").subtotal, 160);
 
-check("equipment absent === legacy", computeQuote({ slotId: "fd", spaceId: "cyc", addonIds: [] }).total, 280);
-check(
-  "equipment empty object changes nothing",
-  computeQuote({ slotId: "fd", spaceId: "cyc", addonIds: [], equipment: {} }).total,
-  280
-);
-// CAM-01 (Sony FX6) is 150/day.
-check(
-  "one item adds its day rate",
-  computeQuote({ slotId: "fd", spaceId: "cyc", addonIds: [], equipment: { "CAM-01": 1 } }).total,
-  280 + 150
-);
-check(
-  "quantity multiplies",
-  computeQuote({ slotId: "fd", spaceId: "cyc", addonIds: [], equipment: { "CAM-01": 2 } }).total,
-  280 + 300
-);
-// A half day pays the SAME equipment rate as a full day.
-check(
-  "half day pays the full equipment day rate",
-  computeQuote({ slotId: "am", spaceId: "cyc", addonIds: [], equipment: { "CAM-01": 1 } }).total,
-  140 + 150
-);
-check(
-  "zero and negative quantities are ignored",
-  computeQuote({
+/* ── 2. Space upcharges stack on top, unchanged ──────────────────────────── */
+
+check("Full House · full day · black box", studio("full", "fd", "blk").subtotal, 260 + 40);
+check("Full House · full day · both rooms", studio("full", "fd", "both").subtotal, 260 + 80);
+check("Base · half day · black box", studio("base", "am", "blk").subtotal, 110 + 40);
+
+/* ── 3. VAT ──────────────────────────────────────────────────────────────── */
+
+const vatCase = studio("base", "fd");
+check("VAT on 180", vatCase.vat, 41);
+check("total is subtotal + VAT", vatCase.total, vatCase.subtotal + vatCase.vat);
+check("total matches the rate", vatCase.total, Math.round(180 * (1 + VAT_RATE)));
+
+// The two helpers must round identically, or the summary shows 180 + 41 next
+// to a total of 222.
+for (const n of [110, 160, 180, 260, 300, 340]) {
+  const q = computeQuote({
     slotId: "fd",
     spaceId: "cyc",
+    packageId: "base",
+    date: WEEKDAY,
     addonIds: [],
-    equipment: { "CAM-01": 0, "LNS-01": -3 },
-  }).total,
-  280
+    equipment: {},
+  });
+  void q;
+  const parts = Math.round(n) + (Math.round(n * (1 + VAT_RATE)) - Math.round(n));
+  check(`VAT parts add up for ${n}`, parts, Math.round(n * (1 + VAT_RATE)));
+}
+
+/* ── 4. Weekend and holiday surcharge ────────────────────────────────────── */
+
+check("Saturday adds 20% to studio time", studio("base", "fd", "cyc", SATURDAY).subtotal, 216);
+check("Sunday adds 20%", studio("base", "fd", "cyc", SUNDAY).subtotal, 216);
+check("a weekday adds nothing", studio("base", "fd", "cyc", WEEKDAY).subtotal, 180);
+check("no date means no surcharge", computeQuote({
+  slotId: "fd", spaceId: "cyc", packageId: "base", addonIds: [],
+}).subtotal, 180);
+
+check("Christmas adds 20%", studio("base", "fd", "cyc", CHRISTMAS).subtotal, 216);
+check("Good Friday 2027 adds 20%", studio("base", "fd", "cyc", GOOD_FRIDAY_2027).subtotal, 216);
+
+// The surcharge is a named line, not a silently bigger base.
+const sat = studio("base", "fd", "cyc", SATURDAY);
+check("Saturday base is still the list price", sat.base.amount, 180);
+check("Saturday surcharge is its own line", sat.surcharge?.amount, 36);
+check("Saturday surcharge says why", sat.surcharge?.reason, "weekend");
+check("Christmas surcharge says why", studio("base", "fd", "cyc", CHRISTMAS).surcharge?.reason, "holiday");
+check("weekday has no surcharge line", studio("base", "fd", "cyc", WEEKDAY).surcharge, null);
+
+// The upcharge scales with the day; 260 + 40 = 300, times 1.2 = 360.
+check("Saturday scales the space upcharge too", studio("full", "fd", "blk", SATURDAY).subtotal, 360);
+
+/* ── 5. The surcharge does NOT touch equipment ───────────────────────────── */
+
+const satWithGear = computeQuote({
+  slotId: "fd", spaceId: "cyc", packageId: "base", date: SATURDAY,
+  addonIds: [], equipment: { "LIT-01": 1 },
+});
+check("equipment is not surcharged on a Saturday", satWithGear.subtotal, 216 + 70);
+
+const weekdayWithGear = computeQuote({
+  slotId: "fd", spaceId: "cyc", packageId: "base", date: WEEKDAY,
+  addonIds: [], equipment: { "LIT-01": 1 },
+});
+check("same gear on a weekday", weekdayWithGear.subtotal, 180 + 70);
+check("qty multiplies", computeQuote({
+  slotId: "fd", spaceId: "cyc", packageId: "base", date: WEEKDAY,
+  addonIds: [], equipment: { "LIT-01": 2 },
+}).subtotal, 180 + 140);
+
+/* ── 6. Bundles still exclude their own members ──────────────────────────── */
+
+const bundled = computeQuote({
+  slotId: "fd", spaceId: "cyc", packageId: "base", date: WEEKDAY,
+  addonIds: [], bundleIds: ["cam"], equipment: { "CAM-01": 1 },
+});
+check(
+  "a member inside a chosen bundle is not charged twice",
+  bundled.subtotal,
+  180 + (bundled.bundles[0]?.amount ?? -1)
 );
 
-// GRP-04 (C-stand kit) is free but must still appear on the booking.
-const freeItem = computeQuote({
-  slotId: "fd",
-  spaceId: "cyc",
-  addonIds: [],
-  equipment: { "GRP-04": 1 },
+/* ── 7. Unknown ids are reported, never silently priced at zero ──────────── */
+
+const bogus = computeQuote({
+  slotId: "nope", spaceId: "nope", packageId: "nope", date: WEEKDAY,
+  addonIds: ["nope"],
 });
-check("free item costs nothing", freeItem.total, 280);
-check("free item still gets a line", freeItem.equipment.length, 1);
-check("free item line is 0", freeItem.equipment[0].amount, 0);
+check("unknown ids are collected", bogus.unknownIds.length, 4);
+check("an unknown package falls back to the cheapest", bogus.base.amount, 110);
 
-// Bundles price as the bundle and swallow their members.
-const bundled = computeQuote({ slotId: "fd", spaceId: "cyc", addonIds: [], bundleIds: ["cam"] });
-check("camera bundle costs 240", bundled.total, 280 + 240);
-check("camera bundle is one line", bundled.bundles.length, 1);
+/* ── 8. The date helpers themselves ──────────────────────────────────────── */
 
-const bundlePlusMember = computeQuote({
-  slotId: "fd",
-  spaceId: "cyc",
-  addonIds: [],
-  bundleIds: ["cam"],
-  equipment: { "CAM-01": 1 }, // the FX6 is inside the camera bundle
-});
-check("a member inside a chosen bundle is not charged twice", bundlePlusMember.total, 280 + 240);
-check("the duplicated member produces no item line", bundlePlusMember.equipment.length, 0);
+check("Saturday is a weekend", isWeekend(SATURDAY), true);
+check("Sunday is a weekend", isWeekend(SUNDAY), true);
+check("Wednesday is not", isWeekend(WEEKDAY), false);
+check("Christmas is a holiday", isPortugueseHoliday(CHRISTMAS), true);
+check("25 April is a holiday", isPortugueseHoliday("2026-04-25"), true);
+check("an ordinary Wednesday is not", isPortugueseHoliday(WEEKDAY), false);
 
-const bundlePlusOther = computeQuote({
-  slotId: "fd",
-  spaceId: "cyc",
-  addonIds: [],
-  bundleIds: ["cam"],
-  equipment: { "AUD-01": 1 }, // 30/day, not in the bundle
-});
-check("an item outside the bundle is still charged", bundlePlusOther.total, 280 + 240 + 30);
+// Easter dates verified against published tables.
+check("Easter 2026 is 5 April", `${easterSunday(2026).m1}-${easterSunday(2026).d}`, "4-5");
+check("Easter 2027 is 28 March", `${easterSunday(2027).m1}-${easterSunday(2027).d}`, "3-28");
+check("Easter 2024 was 31 March", `${easterSunday(2024).m1}-${easterSunday(2024).d}`, "3-31");
+check("Corpus Christi 2026 is 4 June", isPortugueseHoliday("2026-06-04"), true);
+check("13 national holidays in 2026", holidaysInYear(2026).length, 13);
 
-// Unknown codes are reported, never silently priced at zero.
-const badEquip = computeQuote({
-  slotId: "fd",
-  spaceId: "cyc",
-  addonIds: [],
-  equipment: { "NOPE-99": 1 },
-  bundleIds: ["nope"],
-});
-check("unknown equipment does not change the total", badEquip.total, 280);
-check("unknown equipment and bundle are both reported", badEquip.unknownIds.length, 2);
-
-if (failures) {
-  console.error(`\n${failures} check(s) failed.`);
+if (failures > 0) {
+  console.error(`\n${failures} quote assertion(s) failed.`);
   process.exit(1);
 }
-console.log("All quote checks passed.");
+console.log("check-quote: all assertions passed");

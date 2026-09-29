@@ -1,12 +1,13 @@
 /**
  * Booking flow options — time slots and bookable add-ons.
  *
- * Each slot names the pricing tier it bills at, so the booking base price comes
- * from src/data/pricing.ts instead of a `slot === "fd" ? 280 : 140` ternary.
+ * Each slot names how much studio time it buys, so the base price is that
+ * duration priced against the chosen package, never a hardcoded number.
  *
- * KNOWN GAP: the hourly tier (40€/h) has no slot here — morning, afternoon and
- * evening all bill as half days. That predates this refactor; changing it is a
- * pricing decision, not a cleanup.
+ * Every slot sits inside STUDIO_DAY (09:00—19:00) ON PURPOSE. Phase 1 bills
+ * anything before 09:00 or after 19:00 at the off-hours overtime rate, so a
+ * slot crossing that line would quote one price and invoice another. The old
+ * 08:00 morning and 18:00—22:00 evening did exactly that.
  */
 
 import type { Addon, TimeSlot } from "./types";
@@ -36,45 +37,38 @@ export const BOOKING_HORIZON_DAYS = 180;
  * Times are MACHINE values (local wall clock in Europe/Lisbon) and the display
  * string is derived from them by slotTimeLabel(). They used to be a single
  * display string with an em-dash, which a calendar integration would have had
- * to parse — and PricingTier.hours disagreed with it (it says 8 for a slot that
- * runs 11 hours). One source of truth, no drift.
+ * to parse. One source of truth, no drift — and the hours here now agree with
+ * DURATIONS in pricing.ts (4 and 10), which the old 08:00—19:00 full day did
+ * not.
  */
 export const TIME_SLOTS: readonly TimeSlot[] = [
   {
     id: "am",
     label: "MORNING",
-    startLocal: "08:00",
-    endLocal: "12:00",
+    startLocal: "09:00",
+    endLocal: "13:00",
     note: "Best light through east windows",
-    tierId: "hd",
+    durationId: "hd",
   },
   {
     id: "pm",
     label: "AFTERNOON",
-    startLocal: "13:00",
-    endLocal: "17:00",
+    startLocal: "14:00",
+    endLocal: "18:00",
     note: "Tungsten balanced inside",
-    tierId: "hd",
-  },
-  {
-    id: "ev",
-    label: "EVENING",
-    startLocal: "18:00",
-    endLocal: "22:00",
-    note: "Dark room only after sunset",
-    tierId: "hd",
+    durationId: "hd",
   },
   {
     id: "fd",
     label: "FULL DAY",
-    startLocal: "08:00",
+    startLocal: "09:00",
     endLocal: "19:00",
-    note: "11 hours · best value",
-    tierId: "fd",
+    note: "10 hours · best value",
+    durationId: "fd",
   },
 ];
 
-/** "08:00 — 12:00". The em-dash (U+2014) is the house style. */
+/** "09:00 — 13:00". The em-dash (U+2014) is the house style. */
 export function slotTimeLabel(s: TimeSlot): string {
   return `${s.startLocal} — ${s.endLocal}`;
 }

@@ -27,6 +27,7 @@ export interface BookingRequest {
   brief: string;
   date: ISODate;
   slotId: string;
+  packageId: string;
   spaceId: string;
   addonIds: string[];
   equipment: Record<string, number>;
@@ -75,8 +76,12 @@ export function parseBookingRequest(body: unknown, today: ISODate): ParseResult 
 
   const slotId = str(b.slot, 20);
   const spaceId = str(b.space, 20);
+  const packageId = str(b.package, 20);
   if (!slotId) return { ok: false, error: "Slot is required" };
   if (!spaceId) return { ok: false, error: "Space is required" };
+  // Required rather than defaulted: the package IS the price, so silently
+  // quoting the cheap one for a request that named neither would undercharge.
+  if (!packageId) return { ok: false, error: "Package is required" };
 
   // Same-day booking is allowed, so today is legitimately on offer — but not a
   // slot starting inside the approval window. The UI hides those; this is what
@@ -124,6 +129,7 @@ export function parseBookingRequest(body: unknown, today: ISODate): ParseResult 
       brief: str(b.brief, LIMITS.brief),
       date,
       slotId,
+      packageId,
       spaceId,
       addonIds,
       equipment,

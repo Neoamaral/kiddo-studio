@@ -6,19 +6,20 @@ import {
   ScribbleArrowIcon,
   TapeStrip,
   SmileyFaceIcon,
-  HandDrawnStarIcon,
   CircularBadgeSeal,
   kiddoColors,
 } from "@/components/kiddo-assets";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import {
   ADDONS,
+  DURATION_BY_ID,
   FAQ,
-  PRICING_TIERS,
+  OVERTIME,
+  PACKAGES,
+  STUDIO_DAY,
   WEEKEND_BADGE,
   WEEKEND_MULTIPLIER,
-  tierDisplayPrice,
-  tierUnit,
+  entryPrice,
 } from "@/data/pricing";
 import { TICKET_THEMES } from "./ticketTheme";
 import { formatRate } from "@/lib/money";
@@ -64,7 +65,7 @@ export default function PricingPageClient() {
             userSelect: "none",
           }}
         >
-          40€
+          {entryPrice()}€
         </span>
 
         {/* TapeStrip decoration */}
@@ -202,9 +203,12 @@ export default function PricingPageClient() {
 
       {/* SECTION 2 — TICKETS */}
       <section style={{ padding: 0 }}>
-        {PRICING_TIERS.map((t, i) => {
+        {PACKAGES.map((t, i) => {
           const theme = TICKET_THEMES[t.id];
-          const showPrice = tierDisplayPrice(t, mult);
+          // Both prices move together under the weekend toggle: the surcharge
+          // is on studio time, and both durations are studio time.
+          const fullDay = Math.round(t.rates.fd * mult);
+          const halfDay = Math.round(t.rates.hd * mult);
           const subtle = theme.dark
             ? "rgba(255,255,255,0.6)"
             : "rgba(0,0,0,0.6)";
@@ -226,9 +230,19 @@ export default function PricingPageClient() {
               <div
                 className="kiddo-container"
                 style={{
-                  padding: isMobile ? "20px 16px" : "56px 0",
+                  // padding-BLOCK only. The `padding: 56px 0` shorthand that
+                  // used to be here zeroed .kiddo-container's own
+                  // padding-inline, so at 1440 (exactly its max-width) the
+                  // package name sat flush against the viewport edge.
+                  paddingBlock: isMobile ? 20 : 56,
                   display: "grid",
-                  gridTemplateColumns: isMobile ? "1fr" : "auto 1fr auto",
+                  // minmax(0,…) on every track: with bare `auto`/`1fr` the
+                  // giant price refused to shrink and pushed the package name
+                  // out through the container's own padding, so "BASE HIRE"
+                  // sat flush against the viewport edge.
+                  gridTemplateColumns: isMobile
+                    ? "1fr"
+                    : "minmax(0,auto) minmax(0,1fr) minmax(0,auto)",
                   gap: isMobile ? 16 : 48,
                   alignItems: "center",
                   position: "relative",
@@ -244,7 +258,7 @@ export default function PricingPageClient() {
                   <h3
                     style={{
                       fontFamily: "var(--font-display)",
-                      fontSize: "clamp(3rem,6vw,5.75rem)",
+                      fontSize: "clamp(2.2rem,4.4vw,4.2rem)",
                       lineHeight: 0.9,
                       color: theme.text,
                       fontWeight: 400,
@@ -254,7 +268,9 @@ export default function PricingPageClient() {
                   >
                     {t.name}
                   </h3>
-                  <span style={{ ...monoXs, color: subtle }}>{t.min}</span>
+                  <span style={{ ...monoXs, color: subtle }}>
+                    {DURATION_BY_ID.fd.hours}H DAY · {DURATION_BY_ID.hd.hours}H HALF
+                  </span>
                   {t.featured && (
                     <HandwrittenWord
                       text="← pick me"
@@ -265,7 +281,10 @@ export default function PricingPageClient() {
                   )}
                 </div>
 
-                {/* Center: GIANT price */}
+                {/* Center: the two prices.
+                    Full day giant, half day beneath it — a package has two
+                    prices now, and showing only one would mean the client
+                    discovers the other at checkout. */}
                 <div
                   style={{
                     display: "flex",
@@ -275,6 +294,9 @@ export default function PricingPageClient() {
                     position: "relative",
                   }}
                 >
+                  <span style={{ ...monoXs, color: subtle }}>
+                    {DURATION_BY_ID.fd.label}
+                  </span>
                   <div
                     style={{
                       display: "flex",
@@ -285,14 +307,14 @@ export default function PricingPageClient() {
                     <span
                       style={{
                         fontFamily: "var(--font-display)",
-                        fontSize: "clamp(6rem,18vw,17.5rem)",
+                        fontSize: "clamp(4rem,11vw,10rem)",
                         lineHeight: 0.85,
                         letterSpacing: "-0.04em",
                         color: theme.text,
                         fontWeight: 400,
                       }}
                     >
-                      {showPrice}
+                      {fullDay}
                     </span>
                     <span
                       style={{
@@ -300,11 +322,11 @@ export default function PricingPageClient() {
                         fontSize: "clamp(2rem,4.5vw,4.375rem)",
                         lineHeight: 1,
                         color: theme.text,
-                        marginTop: 28,
+                        marginTop: 24,
                         fontWeight: 400,
                       }}
                     >
-                      {tierUnit(t.rate)}
+                      €
                     </span>
                   </div>
                   <div style={{ marginTop: 4, alignSelf: "center" }}>
@@ -314,6 +336,19 @@ export default function PricingPageClient() {
                       width={160}
                     />
                   </div>
+                  <span
+                    style={{
+                      ...monoXs,
+                      color: theme.text,
+                      marginTop: 12,
+                      fontWeight: 700,
+                    }}
+                  >
+                    {DURATION_BY_ID.hd.label} — {halfDay}€
+                  </span>
+                  <span style={{ ...monoXs, color: subtle, marginTop: 6 }}>
+                    + IVA
+                  </span>
                 </div>
 
                 {/* Right: bullets + CTA */}
@@ -322,7 +357,7 @@ export default function PricingPageClient() {
                     display: "flex",
                     flexDirection: "column",
                     gap: 14,
-                    minWidth: isMobile ? 0 : 280,
+                    minWidth: isMobile ? 0 : 250,
                   }}
                 >
                   <ul
@@ -335,7 +370,7 @@ export default function PricingPageClient() {
                       padding: 0,
                     }}
                   >
-                    {t.bullets.map((b) => (
+                    {t.includes.map((b) => (
                       <li
                         key={b}
                         style={{
@@ -365,9 +400,23 @@ export default function PricingPageClient() {
                     ))}
                   </ul>
                   <a
+                    href={t.equipmentListUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      ...monoXs,
+                      color: theme.text,
+                      textDecoration: "underline",
+                      textUnderlineOffset: 4,
+                      alignSelf: "flex-start",
+                    }}
+                  >
+                    SEE EQUIPMENT LIST →
+                  </a>
+                  <a
                     href="/booking"
                     style={{
-                      marginTop: 10,
+                      marginTop: 4,
                       padding: "14px 22px",
                       fontFamily: "var(--font-mono)",
                       fontSize: 11,
@@ -413,22 +462,106 @@ export default function PricingPageClient() {
                     />
                   </div>
                 )}
-                {t.id === "md" && (
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: 30,
-                      right: 30,
-                      opacity: 0.2,
-                    }}
-                  >
-                    <HandDrawnStarIcon width={80} color={kiddoColors.lime} />
-                  </div>
-                )}
               </div>
             </div>
           );
         })}
+      </section>
+
+      {/* SECTION 2b — TIME RULES & SURCHARGES
+          These are billed AFTER the shoot, so they cannot be options in the
+          booking flow. Stating them here is the only honest place for them:
+          a client who finds out about 55€/h at invoice time was misled. */}
+      <section style={{ background: "#111111", padding: isMobile ? "48px 0" : "72px 0" }}>
+        <div className="kiddo-container">
+          <span style={{ ...monoXs, color: "rgba(255,255,255,0.4)" }}>
+            // STUDIO TIME RULES
+          </span>
+          <h2
+            style={{
+              fontFamily: "var(--font-display)",
+              fontSize: "clamp(2rem,4.5vw,3.5rem)",
+              lineHeight: 0.95,
+              textTransform: "uppercase",
+              color: "#fff",
+              margin: "12px 0 8px",
+            }}
+          >
+            THE SMALL PRINT,
+            <br />
+            <HandwrittenWord
+              text="out loud."
+              color={kiddoColors.lime}
+              fontSize="inherit"
+              rotation={-2}
+            />
+          </h2>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
+              gap: isMobile ? 20 : 32,
+              marginTop: 36,
+              borderTop: "1px solid rgba(255,255,255,0.12)",
+              paddingTop: 28,
+            }}
+          >
+            {[
+              {
+                k: `${OVERTIME.standard}€/H`,
+                t: "OVERTIME",
+                d: "Billed automatically for any time running past the agreed wrap.",
+              },
+              {
+                k: `${OVERTIME.offHours}€/H`,
+                t: "OFF HOURS",
+                d: `Before ${STUDIO_DAY.open} or after ${STUDIO_DAY.close}, whatever the day.`,
+              },
+              {
+                k: WEEKEND_BADGE.replace(" APPLIED", ""),
+                t: "WEEKEND & HOLIDAYS",
+                d: "Saturdays, Sundays and public holidays, on studio time.",
+              },
+            ].map((r) => (
+              <div key={r.t} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <span
+                  style={{
+                    fontFamily: "var(--font-display)",
+                    fontSize: "clamp(2.2rem,4vw,3.2rem)",
+                    lineHeight: 1,
+                    color: kiddoColors.lime,
+                  }}
+                >
+                  {r.k}
+                </span>
+                <span style={{ ...monoXs, color: "#fff" }}>{r.t}</span>
+                <span
+                  style={{
+                    fontFamily: "var(--font-body)",
+                    fontSize: 13,
+                    lineHeight: 1.6,
+                    color: "rgba(255,255,255,0.55)",
+                  }}
+                >
+                  {r.d}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <p
+            style={{
+              ...monoXs,
+              color: "rgba(255,255,255,0.4)",
+              marginTop: 28,
+              letterSpacing: "0.15em",
+              lineHeight: 1.8,
+            }}
+          >
+            ALL STUDIO RATES EXCLUDE IVA.
+          </p>
+        </div>
       </section>
 
       {/* SECTION 3 — ADD-ONS receipt */}
@@ -561,7 +694,7 @@ export default function PricingPageClient() {
               }}
             >
               <span style={{ ...monoXs, color: "rgba(0,0,0,0.5)" }}>
-                VAT INCLUDED · INVOICED AFTER
+                PLUS IVA · INVOICED AFTER
               </span>
               <span
                 style={{

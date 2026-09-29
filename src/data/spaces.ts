@@ -3,15 +3,14 @@
  *
  * HAND-AUTHORED. Not part of the Notion equipment sync.
  *
- * The studio page's "FROM 280€/DAY" / "FROM 320€/DAY" and the booking flow's
- * "+0€" / "+40€" / "+80€" describe the SAME thing from two angles: full-day base
- * plus the space upcharge. Both now derive from `upcharge`, so they can no
- * longer contradict each other.
+ * The studio page's "FROM 180€/DAY" / "FROM 220€/DAY" and the booking flow's
+ * "+0€" / "+40€" / "+80€" describe the SAME thing from two angles: the cheapest
+ * full day plus the space upcharge. Both derive from `upcharge`, so they can no
+ * longer contradict each other. Excludes VAT, like every studio rate.
  */
 
 import type { Rate, StudioSpace } from "./types";
-import { TIER_BY_ID } from "./pricing";
-import { rateAmount } from "@/lib/money";
+import { cheapestFullDay } from "./pricing";
 
 export const SPACES: readonly StudioSpace[] = [
   {
@@ -53,8 +52,7 @@ export function spaceUpcharge(id: string | null): number {
   return spaceById(id)?.upcharge ?? 0;
 }
 
-/** "FROM 280€/DAY" / "FROM 320€/DAY" — full-day base plus this space's upcharge. */
+/** "FROM 180€/DAY" — the cheapest package's full day plus this space's upcharge. */
 export function spaceFromRate(space: StudioSpace): Rate {
-  const fullDay = rateAmount(TIER_BY_ID.fd.rate) ?? 0;
-  return { kind: "from", amount: fullDay + space.upcharge, per: "day" };
+  return { kind: "from", amount: cheapestFullDay() + space.upcharge, per: "day" };
 }

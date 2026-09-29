@@ -2,13 +2,13 @@ import type { Euros, Rate, RatePeriod } from "@/data/types";
 
 const PERIOD_SUFFIX: Record<RatePeriod, string> = {
   hour: "/h",
-  halfDay: "", // half-day price is quoted bare: "140€"
+  halfDay: "", // half-day price is quoted bare: "110€"
   day: "/day",
   week: "/week",
   unit: "",
 };
 
-/** Site convention: € SUFFIXED, no space, whole integers. -> "140€" */
+/** Site convention: € SUFFIXED, no space, whole integers. -> "110€" */
 export function eur(amount: Euros): string {
   return `${Math.round(amount)}€`;
 }
@@ -38,7 +38,7 @@ export interface FormatRateOptions {
   bare?: boolean;
 }
 
-/** "80€" · "180€/day" · "FREE" · "FROM 200€" · "FROM 280€/DAY" */
+/** "80€" · "180€/day" · "FREE" · "FROM 200€" · "FROM 180€/DAY" */
 export function formatRate(rate: Rate, o: FormatRateOptions = {}): string {
   const upper = o.upper !== false;
   switch (rate.kind) {

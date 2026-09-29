@@ -56,8 +56,8 @@ interface EventListResponse {
 }
 
 /**
- * Overlap, not equality — this is what makes FULL DAY (08:00–19:00) conflict
- * with an EVENING booking (18:00–22:00) over the shared hour.
+ * Overlap, not equality — this is what makes FULL DAY (09:00–19:00) conflict
+ * with a MORNING booking (09:00–13:00) over the shared hours.
  */
 function overlaps(a: BusyInterval, b: BusyInterval): boolean {
   return a.start < b.end && a.end > b.start;

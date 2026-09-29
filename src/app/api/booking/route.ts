@@ -6,6 +6,7 @@ import { bookingRef } from "@/lib/ref";
 import { formatDateHuman, todayInLisbon } from "@/lib/date";
 import { slotById, slotTimeLabel } from "@/data/booking";
 import { spaceById } from "@/data/spaces";
+import { VAT_RATE, packageById } from "@/data/pricing";
 import type { MonthAvailability } from "@/data/availability";
 import { eur } from "@/lib/money";
 import { isCalendarConfigured } from "@/lib/gcal/auth";
@@ -60,6 +61,8 @@ export async function POST(req: NextRequest) {
     const quote = computeQuote({
       slotId: r.slotId,
       spaceId: r.spaceId,
+      packageId: r.packageId,
+      date: r.date,
       addonIds: r.addonIds,
       equipment: r.equipment,
       bundleIds: r.bundleIds,
@@ -83,6 +86,7 @@ export async function POST(req: NextRequest) {
     const ref = bookingRef();
     const slot = slotById(r.slotId);
     const space = spaceById(r.spaceId);
+    const pkg = packageById(r.packageId);
 
     /*
      * Calendar write.
@@ -186,12 +190,20 @@ export async function POST(req: NextRequest) {
         `Date: ${formatDateHuman(r.date)}  (${r.date})`,
         `Slot: ${slot ? `${slot.label} · ${slotTimeLabel(slot)}` : r.slotId}`,
         `Space: ${space?.label ?? r.spaceId}`,
+        `Package: ${pkg?.name ?? r.packageId}  (${eur(quote.base.amount)})`,
         `Add-ons: ${addonList}`,
         "",
         gearLines.length ? "Equipment:" : "Equipment: —",
         ...gearLines,
         "",
-        `TOTAL: ${eur(quote.total)}`,
+        // Spelled out because studio rates are quoted ex-VAT: a bare total
+        // would be ambiguous on an invoice.
+        ...(quote.surcharge
+          ? [`${quote.surcharge.label} surcharge: ${eur(quote.surcharge.amount)}`]
+          : []),
+        `Subtotal: ${eur(quote.subtotal)}`,
+        `IVA ${Math.round(VAT_RATE * 100)}%: ${eur(quote.vat)}`,
+        `TOTAL INCL. IVA: ${eur(quote.total)}`,
         "",
         "Brief:",
         r.brief || "—",

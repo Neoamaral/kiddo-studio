@@ -55,7 +55,7 @@ export interface DateBounds {
  *
  * True once the slot starts within BOOKING_MIN_NOTICE_MINUTES — which includes
  * slots that have already begun. Same-day booking is allowed, so without this
- * the site would offer the 08:00 morning slot at six in the evening, and would
+ * the site would offer the 09:00 morning slot at six in the evening, and would
  * also accept a request twenty minutes before the shoot that nobody could
  * approve in time.
  *

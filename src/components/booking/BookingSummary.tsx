@@ -14,6 +14,7 @@ import type { Quote } from "@/lib/quote";
 import type { ISODate } from "@/lib/date";
 import { formatDateHuman } from "@/lib/date";
 import { eur, eurSigned } from "@/lib/money";
+import { VAT_RATE, WEEKEND_BADGE } from "@/data/pricing";
 
 export interface BookingSummaryProps {
   date: ISODate | null;
@@ -110,16 +111,25 @@ export default function BookingSummary({
           marginBottom: 20,
         }}
       >
-        {/* Before a slot is picked the quote falls back to the half-day tier.
-            Showing that as a real price would be a claim we haven't earned. */}
+        {/* Before a slot is picked the quote falls back to the cheapest half
+            day. Showing that as a real price would be a claim we haven't
+            earned. */}
         <PriceRow
-          label={`Base · ${slotObj ? slotObj.label : "Half day"}`}
+          label={quote.base.label}
           value={slotId ? eur(quote.base.amount) : "—"}
         />
         {quote.space && (
           <PriceRow
             label={`Space upgrade · ${quote.space.label}`}
             value={eurSigned(quote.space.amount)}
+          />
+        )}
+        {/* Named, not folded into the base: a price that silently grows by a
+            fifth reads as a mistake, not as a surcharge. */}
+        {quote.surcharge && (
+          <PriceRow
+            label={`${quote.surcharge.label} · ${WEEKEND_BADGE}`}
+            value={eurSigned(quote.surcharge.amount)}
           />
         )}
         {quote.addons.map((a) => (
@@ -144,6 +154,26 @@ export default function BookingSummary({
           marginBottom: 24,
         }}
       >
+        {/* Studio rates are quoted excluding VAT, so the total has to show its
+            working — otherwise the client budgets for the subtotal and is
+            surprised by 23% at invoice time. */}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 6,
+            marginBottom: 14,
+          }}
+        >
+          <PriceRow
+            label="Subtotal"
+            value={slotId ? eur(quote.subtotal) : "—"}
+          />
+          <PriceRow
+            label={`IVA ${Math.round(VAT_RATE * 100)}%`}
+            value={slotId ? eur(quote.vat) : "—"}
+          />
+        </div>
         <div
           style={{
             fontFamily: "var(--font-mono)",
@@ -154,7 +184,7 @@ export default function BookingSummary({
             marginBottom: 6,
           }}
         >
-          Total
+          Total incl. IVA
         </div>
         <div
           style={{

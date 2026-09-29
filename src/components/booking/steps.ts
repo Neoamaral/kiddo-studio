@@ -10,15 +10,28 @@
  * ORDER MATTERS AND IS NOT PREFERENCE: space has no prerequisite; the date
  * needs to know which calendars to query; the slot needs date AND space;
  * equipment stock is per-date.
+ *
+ * The package sits right after the space — where, then what kit, then when —
+ * so the summary panel shows a real base price before the calendar appears.
+ * It has no prerequisite of its own and nothing downstream depends on it;
+ * putting it here is about the client understanding the price, not about data.
  */
 
 import type { ISODate } from "@/lib/date";
 
-export type StepId = "space" | "date" | "slot" | "addons" | "equipment" | "details";
+export type StepId =
+  | "space"
+  | "package"
+  | "date"
+  | "slot"
+  | "addons"
+  | "equipment"
+  | "details";
 
 /** Just what the gate needs — deliberately not the whole form state. */
 export interface BookingSelection {
   spaceId: string;
+  packageId: string;
   date: ISODate | null;
   slotId: string;
   name: string;
@@ -41,6 +54,12 @@ export const STEPS: readonly StepDef[] = [
     navLabel: "SPACE",
     cardLabel: "WHICH SPACE?",
     isComplete: (s) => !!s.spaceId,
+  },
+  {
+    id: "package",
+    navLabel: "PACKAGE",
+    cardLabel: "WHICH PACKAGE?",
+    isComplete: (s) => !!s.packageId,
   },
   {
     id: "date",

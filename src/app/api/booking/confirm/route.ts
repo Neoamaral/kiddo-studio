@@ -115,7 +115,7 @@ async function notifyClient(booking: {
     `Space:  ${space?.label ?? booking.spaceId}`,
     gear ? `\nEquipment:\n${gear}` : "",
     "",
-    `Total:  ${eur(Number(booking.total) || 0)} (VAT included, invoiced after)`,
+    `Total:  ${eur(Number(booking.total) || 0)} (incl. IVA, invoiced after)`,
     "",
     "Anything to change, just reply to this email.",
     "",
