@@ -4,7 +4,8 @@
  * WHY THIS IS A PLAIN VARIABLE AND NOT unstable_cache
  *
  * It was unstable_cache with tags, purged on save — the arrangement
- * gcal/availability.ts uses. It did not work: a price saved in the panel never
+ * the Google availability reader used. It did not work: a price saved in the
+ * panel never
  * reached the page. revalidateTag did not release it, revalidatePath did not
  * release it, and neither did the cache's own 60-second TTL. Measured over a
  * hundred seconds with the store holding the new value the whole time and the

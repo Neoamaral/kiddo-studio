@@ -7,7 +7,8 @@ import AdminChrome from "@/components/admin/AdminChrome";
  *
  * A server component rather than middleware: middleware runs on the Edge
  * runtime, where node:crypto and timingSafeEqual do not exist — the same
- * constraint that made gcal/auth.ts hand-roll RS256 with crypto.subtle.
+ * constraint that once made the Google integration hand-roll RS256 with
+ * crypto.subtle rather than use node:crypto.
  * Verifying here keeps one implementation of the session for pages and routes.
  */
 export default async function ProtectedLayout({

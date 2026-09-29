@@ -11,8 +11,6 @@
     "check:quote": "tsx scripts/check-quote.ts",
     "sync:photos": "node scripts/fetch-equipment-photos.mjs",
     "check:dates": "tsx scripts/check-dates.ts",
-    "gcal:discover": "tsx scripts/gcal-discover.ts",
-    "gcal:smoke": "tsx scripts/gcal-smoke.ts",
     "check:availability": "tsx scripts/check-availability.ts",
     "admin:hash": "tsx scripts/admin-hash.ts",
     "check:admin": "tsx scripts/check-admin.ts",

@@ -3,15 +3,15 @@
  *
  * WHY THIS IS ITS OWN FILE
  *
- * The site is moving from Google Calendar to its own calendar, and the bet is
- * that no UI changes: BookingCalendar receives availability as a prop
- * precisely so the source can be swapped. The obvious way to keep that promise
- * is a test comparing the two readers' output.
+ * The decision used to live inside the Google Calendar reader. Moving the site
+ * to its own calendar meant two readers existed at once, and the promise was
+ * that no UI would change — BookingCalendar receives availability as a prop
+ * precisely so the source can be swapped.
  *
- * This is stronger than a test. Both readers call this function, so they cannot
- * disagree — there is one implementation of the rule, and the readers differ
- * only in where they get the intervals. The test then only has to prove this
- * function is right, which needs no network and no database.
+ * Extracting the rule here was stronger than testing that the two agreed: both
+ * called this function, so they could not disagree. The Google reader is gone
+ * now and the argument for keeping this separate is simpler — the rule is pure,
+ * so scripts/check-holds.ts asserts it with no network and no database.
  *
  * Pure: no I/O, no clock beyond the caller's `fetchedAt`, no environment.
  */

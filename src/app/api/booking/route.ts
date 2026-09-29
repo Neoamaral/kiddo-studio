@@ -15,6 +15,7 @@ import { insertBooking } from "@/lib/db/requests";
 import { readMonthAvailability } from "@/lib/db/availability";
 import { deadLetter } from "@/lib/deadletter";
 import { CONFIRM_LIMIT, rateLimited, wrongOrigin } from "@/lib/guard";
+import { confirmUrl } from "@/lib/booking-token";
 
 /** First item whose requested quantity exceeds what is left that day, if any. */
 function equipmentShortage(
@@ -250,11 +251,19 @@ export async function POST(req: NextRequest) {
          * the panel. What this line reports is whether the studio can find it
          * there at all.
          */
+        /*
+         * The link, at last.
+         *
+         * confirmUrl() has been imported by this file since the day it was
+         * written and never once called, so the email carried no way to answer
+         * the request. Every booking therefore sat waiting forever. One line.
+         */
         recorded
-          ? "In the panel: yes — approve or decline it at /admin/requests."
+          ? `Approve or decline: ${confirmUrl(ref, r.date)}`
           : deadLettered
             ? "⚠ NOT in the panel. The request was saved to the recovery store; replay it from /admin."
             : "⚠ NOT stored anywhere but this email. Copy it somewhere safe.",
+        recorded ? "Or open the board: /admin/requests" : "",
       ].join("\n");
 
       // The SDK RESOLVES with { error } for API failures rather than throwing,

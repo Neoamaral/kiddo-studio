@@ -12,9 +12,8 @@ import Footer from "@/components/layout/Footer";
 import { getContact } from "@/lib/data-source";
 import { kiddoColors } from "@/components/kiddo-assets";
 import { TokenError, verifyBookingToken } from "@/lib/booking-token";
-import { findBooking } from "@/lib/gcal/events";
-import { isCalendarConfigured } from "@/lib/gcal/auth";
-import { hasAllCalendars } from "@/lib/gcal/calendars";
+import { isDbConfigured } from "@/lib/db/client";
+import { getRequest } from "@/lib/db/requests";
 import { slotById, slotTimeLabel } from "@/data/booking";
 import { spaceById } from "@/data/spaces";
 import { formatDateHuman } from "@/lib/date";
@@ -174,51 +173,51 @@ export default async function ConfirmPage({
     );
   }
 
-  if (!isCalendarConfigured() || !hasAllCalendars()) {
+  if (!isDbConfigured()) {
     return (
       <Shell>
-        <Title>Calendar not configured</Title>
-        <p style={{ ...mono }}>See scripts/setup-google-calendar.md</p>
+        <Title>Not connected</Title>
+        <p style={{ ...mono }}>The database is not configured, so nothing can be read.</p>
       </Shell>
     );
   }
 
-  const booking = await findBooking(payload.r, payload.d);
+  const booking = await getRequest(payload.r);
   if (!booking) {
     return (
       <Shell>
         <Title>Not found</Title>
         <p style={{ fontFamily: "var(--font-body)", fontSize: 15, lineHeight: 1.6 }}>
-          That request is no longer in the calendar. It may have been declined, or
-          removed by hand.
+          That request is no longer on the board. It may have been erased.
         </p>
       </Shell>
     );
   }
 
-  const slot = slotById(booking.slotId);
-  const space = spaceById(booking.spaceId);
+  const slot = booking.slotId ? slotById(booking.slotId) : undefined;
+  const space = booking.spaceId ? spaceById(booking.spaceId) : undefined;
+  const confirmed = booking.status === "confirmed" || booking.status === "done";
 
   return (
     <Shell>
       <p style={{ ...mono, marginBottom: 10 }}>
-        {booking.confirmed ? "Already confirmed" : "Booking request"}
+        {confirmed ? "Already confirmed" : "Booking request"}
       </p>
       <Title>{booking.name || "Booking"}</Title>
 
       <div style={{ borderTop: "1px solid rgba(0,0,0,0.15)", marginBottom: 20 }}>
         <Row label="Ref" value={booking.ref} />
-        <Row label="Date" value={formatDateHuman(booking.date)} />
+        <Row label="Date" value={booking.date ? formatDateHuman(booking.date) : "—"} />
         <Row
           label="Slot"
-          value={slot ? `${slot.label} · ${slotTimeLabel(slot)}` : booking.slotId}
+          value={slot ? `${slot.label} · ${slotTimeLabel(slot)}` : (booking.slotId ?? "—")}
         />
-        <Row label="Space" value={space?.label ?? booking.spaceId} />
+        <Row label="Space" value={space?.label ?? booking.spaceId ?? "—"} />
         <Row label="Client" value={booking.email || "—"} />
-        <Row label="Total" value={eur(Number(booking.total) || 0)} />
+        <Row label="Total" value={eur((booking.totalCents ?? 0) / 100)} />
       </div>
 
-      {booking.description && (
+      {booking.brief && (
         <pre
           style={{
             fontFamily: "var(--font-mono)",
@@ -233,11 +232,11 @@ export default async function ConfirmPage({
             color: "rgba(0,0,0,0.75)",
           }}
         >
-          {booking.description}
+          {booking.brief}
         </pre>
       )}
 
-      {booking.confirmed ? (
+      {confirmed ? (
         <p style={{ fontFamily: "var(--font-body)", fontSize: 15, lineHeight: 1.6 }}>
           This booking is already confirmed and the slot is blocked. Nothing to do.
         </p>

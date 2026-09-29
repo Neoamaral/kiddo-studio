@@ -10,8 +10,8 @@
  * free" with no special case. If you ever need `if (spaceId === "both")`, the
  * model is wrong.
  *
- * Client-safe: no env, no calendar ids. The resource -> Google calendar id map
- * is server-only and lives in src/lib/gcal/.
+ * Client-safe: no env, no secrets. What a resource is BUSY with is server-only
+ * and lives in src/lib/db/holds.ts.
  */
 
 import type { ResourceId } from "./types";
