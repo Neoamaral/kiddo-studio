@@ -33,7 +33,8 @@ export interface BookingRequest {
   equipment: Record<string, number>;
   bundleIds: string[];
   clientTotal: number | null;
-  idempotencyKey: string;
+  /** null when the caller sent none. Never the empty string — see the parser. */
+  idempotencyKey: string | null;
 }
 
 export type ParseResult =
@@ -117,7 +118,17 @@ export function parseBookingRequest(body: unknown, today: ISODate): ParseResult 
   const rawTotal = Number(b.total);
   const clientTotal = Number.isFinite(rawTotal) ? rawTotal : null;
 
-  const idempotencyKey = str(b.idempotencyKey, 100);
+  /*
+   * null when absent, never "".
+   *
+   * str() returns the empty string for a missing field, and the key is a
+   * UNIQUE column. So the first submission without a key would store "" and
+   * every later keyless submission from anyone would collide with it and be
+   * answered with the FIRST person's booking reference. Silent, total loss of
+   * every request after the first — and only on the path nobody tests, because
+   * the browser always sends a key.
+   */
+  const idempotencyKey = str(b.idempotencyKey, 100) || null;
 
   return {
     ok: true,

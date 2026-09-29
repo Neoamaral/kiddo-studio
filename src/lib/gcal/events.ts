@@ -30,7 +30,8 @@ import { allCalendarIds, calendarIdFor } from "./calendars";
 
 export interface BookingEventInput {
   ref: string;
-  idempotencyKey: string;
+  /** null when the caller sent none — see parseBookingRequest. */
+  idempotencyKey: string | null;
   date: ISODate;
   slotId: string;
   spaceId: string;
@@ -105,7 +106,9 @@ function buildEvent(input: BookingEventInput, resource: ResourceId) {
     extendedProperties: {
       private: {
         bookingRef: input.ref,
-        idempotencyKey: input.idempotencyKey,
+        // Omitted entirely when absent. An empty value would be a property
+        // that every other keyless request also matches.
+        ...(input.idempotencyKey ? { idempotencyKey: input.idempotencyKey } : {}),
         spaceId: input.spaceId,
         slotId: input.slotId,
         resourceId: resource,
@@ -124,7 +127,7 @@ function buildEvent(input: BookingEventInput, resource: ResourceId) {
 
 /** Has this exact submission already been written? Guards double-submit. */
 export async function findByIdempotencyKey(
-  key: string,
+  key: string | null,
   date: ISODate
 ): Promise<string | null> {
   if (!key) return null;

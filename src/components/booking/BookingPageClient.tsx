@@ -298,6 +298,20 @@ export default function BookingPageClient({
     // Whatever we were shown is demonstrably out of date — refetch, don't
     // send the client back to a picker that still offers the taken slot.
     invalidateAvailability(spaceId);
+
+    /*
+     * Drop the idempotency key. This is not tidying up.
+     *
+     * The key identifies one submission of one selection, not the browser tab.
+     * Kept across a conflict, the next submission — a DIFFERENT slot — carries
+     * the same key, the server recognises it as a repeat, and answers with the
+     * reference of the booking that was just refused. The customer is shown a
+     * success card for the slot they were told was taken.
+     *
+     * Clearing it keeps the case the key actually exists for: the same
+     * selection resubmitted after a network failure.
+     */
+    setIdempotencyKey(null);
     if (kind === "equipment") {
       setSubmit({ status: "idle" });
       setActiveStep(stepIndex("equipment"));

@@ -14,17 +14,16 @@
  */
 
 import type { ResourceId } from "@/data/types";
-import type {
-  DayAvailability,
-  MonthAvailability,
-  SlotAvailability,
-} from "@/data/availability";
+import type { MonthAvailability } from "@/data/availability";
 import { emptyMonth } from "@/data/availability";
-import { TIME_SLOTS, slotById } from "@/data/booking";
-import type { EquipmentItem } from "@/data/types";
 import { resourcesForSpace } from "@/data/resources";
 import type { ISODate } from "@/lib/date";
-import { addDays, daysInMonth, isoDate, parseISO, zonedInstant } from "@/lib/date";
+import { addDays } from "@/lib/date";
+/*
+ * The decision itself is shared with the site's own calendar reader, so the
+ * two cannot drift while both exist. See src/lib/availability-build.ts.
+ */
+import { buildMonth, datesInMonth, type BusyInterval } from "@/lib/availability-build";
 import { unstable_cache, revalidateTag } from "next/cache";
 import { getCatalogue } from "@/lib/data-source";
 import { gcalGet, gcalPost } from "./client";
@@ -32,11 +31,6 @@ import { calendarIdFor } from "./calendars";
 
 /** Everything cached from the calendar hangs off this tag. */
 export const AVAILABILITY_TAG = "availability";
-
-interface BusyInterval {
-  start: number;
-  end: number;
-}
 
 interface FreeBusyResponse {
   calendars: Record<
@@ -54,33 +48,6 @@ interface EventListResponse {
     extendedProperties?: { private?: Record<string, string> };
   }[];
   nextPageToken?: string;
-}
-
-/**
- * Overlap, not equality — this is what makes FULL DAY (09:00–19:00) conflict
- * with a MORNING booking (09:00–13:00) over the shared hours.
- */
-function overlaps(a: BusyInterval, b: BusyInterval): boolean {
-  return a.start < b.end && a.end > b.start;
-}
-
-function slotWindow(date: ISODate, slotId: string): BusyInterval | null {
-  const slot = slotById(slotId);
-  if (!slot) return null;
-  // Wall clock -> instant via Intl, so DST is never computed by hand.
-  return {
-    start: zonedInstant(date, slot.startLocal),
-    end: zonedInstant(date, slot.endLocal),
-  };
-}
-
-/** "YYYY-MM" -> the dates it contains. */
-function datesInMonth(month: string): ISODate[] {
-  const p = parseISO(`${month}-01`);
-  if (!p) return [];
-  return Array.from({ length: daysInMonth(p.y, p.m1) }, (_, i) =>
-    isoDate(p.y, p.m1, i + 1)
-  );
 }
 
 export async function readMonthAvailability(
@@ -130,40 +97,15 @@ export async function readMonthAvailability(
     }));
   }
 
-  const days: Record<ISODate, DayAvailability> = {};
-  for (const date of dates) {
-    const slots: Record<string, SlotAvailability> = {};
-    let anyBusy = false;
+  const usedByDate = await readEquipmentUsed(Object.values(roomIds), timeMin, timeMax);
 
-    for (const slot of TIME_SLOTS) {
-      const win = slotWindow(date, slot.id);
-      if (!win) continue;
-      // THE RULE: the product is free iff every resource it occupies is free.
-      const busy = resources.some((rid) =>
-        (busyByResource[rid] ?? []).some((iv) => overlaps(iv, win))
-      );
-      slots[slot.id] = busy ? "busy" : "free";
-      if (busy) anyBusy = true;
-    }
-    // Sparse: only store days that actually constrain something.
-    if (anyBusy) days[date] = { date, slots };
-  }
-
-  const equipmentRemaining = await readEquipmentRemaining(
-    Object.values(roomIds),
-    timeMin,
-    timeMax,
-    (await getCatalogue()).allItems
-  );
-
-  return {
+  return buildMonth({
     spaceId,
     month,
-    days,
-    equipmentRemaining,
-    degraded: false,
-    fetchedAt: new Date().toISOString(),
-  };
+    busyByResource,
+    usedByDate,
+    items: (await getCatalogue()).allItems,
+  });
 }
 
 /** `CAM-01:1,LNS-02:2` — what the booking route writes on the event. */
@@ -204,7 +146,8 @@ function eventDate(ev: { start?: { date?: string; dateTime?: string } }): ISODat
 }
 
 /**
- * Units of each item still free, per date.
+ * Units of each item COMMITTED, per date. The subtraction from stock is shared
+ * with the other reader — see buildEquipmentRemaining.
  *
  * Reads event payloads — which freebusy cannot give — but aggregates to bare
  * counts here on the server, so the public endpoint never emits a client name.
@@ -212,12 +155,10 @@ function eventDate(ev: { start?: { date?: string; dateTime?: string } }): ISODat
  * the granularity is the whole day because gear is billed at the full day rate
  * whatever the slot.
  */
-async function readEquipmentRemaining(
+async function readEquipmentUsed(
   calendarIds: string[],
   timeMin: string,
-  timeMax: string,
-  /** The live catalogue — stock is editable in the admin panel. */
-  items: readonly EquipmentItem[]
+  timeMax: string
 ): Promise<Record<ISODate, Record<string, number>>> {
   const committed: Record<ISODate, Record<string, number>> = {};
 
@@ -257,16 +198,7 @@ async function readEquipmentRemaining(
     } while (pageToken);
   }
 
-  const remaining: Record<ISODate, Record<string, number>> = {};
-  for (const [date, counts] of Object.entries(committed)) {
-    remaining[date] = {};
-    for (const [code, used] of Object.entries(counts)) {
-      const item = items.find((i) => i.code === code);
-      if (!item) continue;
-      remaining[date][code] = Math.max(0, item.inStock - used);
-    }
-  }
-  return remaining;
+  return committed;
 }
 
 
