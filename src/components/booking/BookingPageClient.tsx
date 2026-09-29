@@ -55,6 +55,8 @@ import {
 interface BookingFormData {
   name: string;
   email: string;
+  /** Optional, and asked for because the studio often needs to call back. */
+  phone: string;
   company: string;
   crewSize: string;
   brief: string;
@@ -115,6 +117,7 @@ export default function BookingPageClient({
   const [formData, setFormData] = useState<BookingFormData>({
     name: "",
     email: "",
+    phone: "",
     company: "",
     crewSize: "",
     brief: "",
@@ -243,6 +246,7 @@ export default function BookingPageClient({
           name: formData.name,
           email: formData.email,
           company: formData.company,
+          phone: formData.phone,
           crewSize: formData.crewSize,
           brief: formData.brief,
           website: formData.website,
@@ -953,6 +957,17 @@ export default function BookingPageClient({
                       value={formData.email}
                       onChange={(e) => setFormData((p) => ({ ...p, email: e.target.value }))}
                       placeholder="you@studio.com"
+                      style={fieldStyle}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={labelStyle}>Phone</label>
+                    <input
+                      type="tel"
+                      value={formData.phone}
+                      onChange={(e) => setFormData((p) => ({ ...p, phone: e.target.value }))}
+                      placeholder="Optional — faster than email"
                       style={fieldStyle}
                     />
                   </div>

@@ -18,22 +18,51 @@ import type { ContactView } from "@/data/contact";
 
 export default function ContactSection({ contact }: { contact: ContactView }) {
   const isMobile = useIsMobile();
-  const [form, setForm] = useState({ name: "", email: "", message: "", type: "STUDIO" });
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    message: "",
+    type: "STUDIO",
+    /** Honeypot — real people never fill this. */
+    website: "",
+  });
   const [sent, setSent] = useState(false);
+  const [failed, setFailed] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setFailed(null);
+    /*
+     * A failure is now shown, not swallowed.
+     *
+     * This used to answer `setSent(true)` in the catch, with the comment
+     * "still show success" — so a message that reached nobody looked sent, and
+     * the sender never wrote again. The route only returns an error when
+     * nothing kept the message at all, which is precisely the case they need
+     * to know about.
+     */
     try {
-      await fetch("/api/contact", {
+      const res = await fetch("/api/contact", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...form, subject: form.type }),
       });
-      setSent(true);
+      if (res.ok) {
+        setSent(true);
+      } else {
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        setFailed(
+          body.error ??
+            `Something went wrong. Please email ${contact.email} instead — sorry about this.`
+        );
+      }
     } catch {
-      setSent(true); // still show success
+      setFailed(
+        `We couldn't reach the studio just now. Please email ${contact.email} instead.`
+      );
     }
     setLoading(false);
   };
@@ -470,6 +499,59 @@ export default function ContactSection({ contact }: { contact: ContactView }) {
                     />
                   </div>
 
+                  {/* Phone */}
+                  <div>
+                    <label
+                      style={{
+                        fontFamily: "var(--font-mono)",
+                        fontSize: 9,
+                        letterSpacing: "0.25em",
+                        textTransform: "uppercase",
+                        color: "rgba(0,0,0,0.5)",
+                        marginBottom: 4,
+                        display: "block",
+                      }}
+                    >
+                      PHONE (OPTIONAL)
+                    </label>
+                    <input
+                      type="tel"
+                      style={{
+                        display: "block",
+                        width: "100%",
+                        padding: "14px 0",
+                        fontFamily: "var(--font-body)",
+                        fontSize: 14,
+                        color: "#1A1A1A",
+                        background: "transparent",
+                        border: 0,
+                        borderBottom: "1px solid rgba(0,0,0,0.25)",
+                        outline: "none",
+                      }}
+                      placeholder="Faster than email, if you like"
+                      value={form.phone}
+                      onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                    />
+                  </div>
+
+                  {/* Honeypot. Hidden from people, irresistible to bots. */}
+                  <input
+                    type="text"
+                    name="website"
+                    tabIndex={-1}
+                    autoComplete="off"
+                    aria-hidden="true"
+                    value={form.website}
+                    onChange={(e) => setForm({ ...form, website: e.target.value })}
+                    style={{
+                      position: "absolute",
+                      left: "-9999px",
+                      width: 1,
+                      height: 1,
+                      opacity: 0,
+                    }}
+                  />
+
                   {/* Message */}
                   <div>
                     <label
@@ -530,6 +612,24 @@ export default function ContactSection({ contact }: { contact: ContactView }) {
                     <span>{loading ? "SENDING..." : "SEND IT"}</span>
                     <ScribbleArrowIcon variant="right" width={20} height={10} color={"#1A1A1A"} />
                   </button>
+
+                  {failed && (
+                    <p
+                      role="alert"
+                      style={{
+                        fontFamily: "var(--font-body)",
+                        fontSize: 13,
+                        lineHeight: 1.6,
+                        color: "#7A0016",
+                        background: "#FDECEF",
+                        border: "1px solid #B00020",
+                        padding: "10px 12px",
+                      }}
+                    >
+                      {failed}
+                    </p>
+                  )}
+
                   <p
                     style={{
                       fontFamily: "var(--font-mono)",

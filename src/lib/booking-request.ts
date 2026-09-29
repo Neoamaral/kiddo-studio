@@ -23,6 +23,8 @@ export interface BookingRequest {
   name: string;
   email: string;
   company: string;
+  /** Optional. The CRM wants it; a booking is not refused for want of one. */
+  phone: string;
   crewSize: string;
   brief: string;
   date: ISODate;
@@ -41,7 +43,7 @@ export type ParseResult =
   | { ok: true; value: BookingRequest }
   | { ok: false; error: string };
 
-const LIMITS = { name: 200, email: 320, company: 200, crewSize: 200, brief: 2000 };
+const LIMITS = { name: 200, email: 320, company: 200, phone: 40, crewSize: 200, brief: 2000 };
 
 function str(v: unknown, max: number): string {
   return typeof v === "string" ? v.trim().slice(0, max) : "";
@@ -136,6 +138,7 @@ export function parseBookingRequest(body: unknown, today: ISODate): ParseResult 
       name,
       email,
       company: str(b.company, LIMITS.company),
+      phone: str(b.phone, LIMITS.phone),
       crewSize: str(b.crewSize, LIMITS.crewSize),
       brief: str(b.brief, LIMITS.brief),
       date,
