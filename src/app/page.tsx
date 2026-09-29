@@ -1,7 +1,6 @@
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import HeroSection from "@/components/home/HeroSection";
-import StudioIntroSection from "@/components/home/StudioIntroSection";
 import ServicesSection from "@/components/home/ServicesSection";
 import TheSpaceSection from "@/components/home/TheSpaceSection";
 import ProcessSection from "@/components/home/ProcessSection";
@@ -15,9 +14,12 @@ export default function HomePage() {
       <Header />
       <main>
         <HeroSection />
-        <StudioIntroSection />
-        <ServicesSection />
+        {/* StudioIntroSection ("THIS IS NOT JUST A STUDIO.") was here and was
+            dropped by request; TheSpaceSection moved up into its slot. The
+            component file is kept, so putting it back is an import plus a
+            line here. */}
         <TheSpaceSection />
+        <ServicesSection />
         <ProcessSection />
         <RecentProjectsSection />
         <PricingCtaSection />
