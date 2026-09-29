@@ -38,4 +38,7 @@ export const PROJECT_IMAGES = [
   "/images/project-06.jpg",
 ];
 
-export const STUDIO_COORDINATES = "38.7223° N  9.1393° W";
+/*
+ * The studio coordinates used to be a constant here. They are edited in the
+ * admin panel now, so they arrive as a prop — see contact.coordinatesPlain.
+ */

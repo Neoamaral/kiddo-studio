@@ -10,6 +10,7 @@ import { spaceById } from "@/data/spaces";
 import { formatDateHuman } from "@/lib/date";
 import { eur } from "@/lib/money";
 import { wrongOrigin } from "@/lib/guard";
+import { getContact } from "@/lib/data-source";
 
 /**
  * The studio confirming or declining a booking request.
@@ -128,7 +129,8 @@ async function notifyClient(booking: {
   const sent = await new Resend(process.env.RESEND_API_KEY).emails.send({
     from: "Kiddo Studio <noreply@kiddostudio.pt>",
     to: [booking.email],
-    replyTo: "studio@kiddostudio.pt",
+    // Replies go to the studio, not into the noreply void.
+    replyTo: (await getContact()).email,
     subject: `Booking confirmed — ${formatDateHuman(booking.date)} · ${space?.label ?? ""} (${booking.ref})`,
     text,
   });

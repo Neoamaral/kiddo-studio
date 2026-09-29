@@ -26,7 +26,8 @@
 
 import { deriveCatalogue, SEED_CATALOGUE, type CatalogueView } from "@/data/equipment";
 import { derivePricing, SEED_PRICING, type PricingView } from "@/data/pricing";
-import { readEquipment, readPricing } from "@/lib/admin/store";
+import { deriveContact, SEED_CONTACT, type ContactView } from "@/data/contact";
+import { readContact, readEquipment, readPricing } from "@/lib/admin/store";
 
 const TTL_MS = 5_000;
 
@@ -37,6 +38,7 @@ interface Slot<T> {
 
 const catalogueSlot: Slot<CatalogueView> = { value: null, at: 0 };
 const pricingSlot: Slot<PricingView> = { value: null, at: 0 };
+const contactSlot: Slot<ContactView> = { value: null, at: 0 };
 
 /** Shared shape: serve a fresh-enough value, otherwise fetch and remember. */
 async function cached<T>(slot: Slot<T>, load: () => Promise<T>, fallback: T): Promise<T> {
@@ -69,6 +71,14 @@ export async function getPricing(): Promise<PricingView> {
   );
 }
 
+export async function getContact(): Promise<ContactView> {
+  return cached(
+    contactSlot,
+    async () => deriveContact((await readContact()).data),
+    SEED_CONTACT
+  );
+}
+
 /**
  * Called straight after a save, in the same process that wrote.
  *
@@ -83,4 +93,9 @@ export function purgeCatalogue(): void {
 export function purgePricing(): void {
   pricingSlot.value = null;
   pricingSlot.at = 0;
+}
+
+export function purgeContact(): void {
+  contactSlot.value = null;
+  contactSlot.at = 0;
 }

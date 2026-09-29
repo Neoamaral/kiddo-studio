@@ -18,25 +18,15 @@
 
 import { put, list, del } from "@vercel/blob";
 import { unstable_noStore } from "next/cache";
-import type { EquipmentSource, PricingSource } from "@/data/types";
+import type { ContactSource, EquipmentSource, PricingSource } from "@/data/types";
 import { SEED_ROWS } from "@/data/equipment";
 import { SEED_PRICING_SOURCE } from "@/data/pricing";
+import { SEED_CONTACT_SOURCE } from "@/data/contact";
 
 export const EQUIPMENT_KEY = "data/equipment.json";
 export const PRICING_KEY = "data/pricing.json";
+export const CONTACT_KEY = "data/contact.json";
 export const PHOTO_PREFIX = "equipment";
-
-/**
- * Snapshots live under their OWN prefix, not beside the live file.
- *
- * They used to be written to `${key}.history/…`, which shares a prefix with
- * the live file — so listing "data/pricing.json" matched the snapshots too,
- * and the read sometimes picked one of those instead. The read then reported
- * nothing stored, the version came back empty, and every save was refused with
- * "someone else saved while you were editing". A naming choice, costing a
- * whole afternoon of wrong conclusions.
- */
-const HISTORY_PREFIX = "history";
 
 export class StoreError extends Error {
   constructor(
@@ -60,55 +50,92 @@ export function isConfigured(): boolean {
   return !!process.env.BLOB_READ_WRITE_TOKEN;
 }
 
-/**
- * Deterministic pathnames, not random ones.
+/*
+ * EVERY SAVE WRITES A NEW PATHNAME. THIS IS NOT OPTIONAL.
  *
- * `addRandomSuffix: false` keeps the live file at a known URL so a read does
- * not have to list the store first. The contents are public either way — they
- * are what the website renders.
+ * The obvious design — one file per document, overwritten in place — does not
+ * work on Vercel Blob, and it fails quietly, which is worse.
+ *
+ * `cacheControlMaxAge: 0` does not mean no caching: the CDN clamps it and
+ * serves `public, max-age=60`. A pathname that never changes therefore has a
+ * URL that never changes, so once a page render has warmed the edge, every
+ * later read is an `x-vercel-cache: HIT` of the OLD bytes. Measured: a save
+ * landed, and the store went on reporting the previous value for between three
+ * and fifty-six seconds. The panel said "live on the site now" and was wrong.
+ *
+ * A cache-busting query string does not help — the blob CDN keys on the path,
+ * not the query, so `?v=…` came back HIT and stale too. Measured, not assumed.
+ *
+ * So each save writes `data/pricing/<timestamp>.json`, a URL that has never
+ * been requested and cannot be a hit, and a read lists that folder and takes
+ * the newest. The index is eventually consistent, which is a window of a
+ * moment rather than a minute, and it is retried.
+ *
+ * This replaces the separate history folder: the older versions ARE the
+ * history, and pruning keeps the newest few.
  */
+const KEEP_VERSIONS = 20;
+
+/** "data/pricing.json" -> "data/pricing/" */
+function versionDir(key: string): string {
+  return key.replace(/\.json$/, "") + "/";
+}
+
+/** Newest first. ISO timestamps sort lexicographically, which is the point. */
+function newestFirst(paths: { pathname: string; url: string }[], dir: string) {
+  return paths
+    .filter((b) => b.pathname.startsWith(dir) && b.pathname.endsWith(".json"))
+    .sort((a, b) => (a.pathname < b.pathname ? 1 : a.pathname > b.pathname ? -1 : 0));
+}
+
+async function fetchJson<T>(url: string, key: string): Promise<T | null> {
+  unstable_noStore();
+  const res = await fetch(url, { cache: "no-store", next: { revalidate: 0 } });
+  if (res.status === 404) return null; // the index is ahead of the content
+  if (!res.ok) throw new StoreError(`Could not read ${key} (${res.status})`, 502);
+  try {
+    return JSON.parse(await res.text()) as T;
+  } catch {
+    throw new StoreError(`${key} in the store is not valid JSON`, 422);
+  }
+}
+
 async function readJson<T>(
   key: string,
   versionOf: (data: T) => string
 ): Promise<{ data: T; version: string } | null> {
+  const dir = versionDir(key);
+
   /*
-   * list() is eventually consistent, in BOTH directions.
-   *
-   * It can report a blob that has just been deleted, whose URL then 404s, and
-   * it can miss one that has just been written. Neither lasts more than a
-   * moment, and both produced confusing failures: a save would succeed and the
-   * next read would answer "could not read (404)".
-   *
-   * So a miss is retried rather than believed. Three quick attempts cover the
-   * window; after that "not stored" is taken at face value and the seed is
-   * served, which is the right answer when the store really is empty.
+   * list() is eventually consistent in BOTH directions: it can miss a blob
+   * written a moment ago and report one deleted a moment ago. A miss is
+   * retried rather than believed; after three quick attempts, "nothing
+   * stored" is taken at face value, which is the right answer for an empty
+   * store.
    */
   for (let attempt = 0; attempt < 3; attempt++) {
-    const { blobs } = await list({ prefix: key });
-    const hit = blobs.find((b) => b.pathname === key);
+    const { blobs } = await list({ prefix: dir });
+    const versions = newestFirst(blobs, dir);
 
-    if (hit) {
-      unstable_noStore();
-      const res = await fetch(hit.url, { cache: "no-store", next: { revalidate: 0 } });
+    // The newest, and the one before it in case the index is ahead of the
+    // content and the newest URL 404s.
+    for (const candidate of versions.slice(0, 2)) {
+      const data = await fetchJson<T>(candidate.url, key);
+      if (data) return { data, version: versionOf(data) };
+    }
 
-      if (res.ok) {
-        const text = await res.text();
-        try {
-          const data = JSON.parse(text) as T;
-          /*
-           * The version comes from INSIDE the document, not from blob
-           * metadata, for the same reason: metadata lags, and a lagging
-           * version turns every save into a spurious "someone else edited
-           * this".
-           */
-          return { data, version: versionOf(data) };
-        } catch {
-          throw new StoreError(`${key} in the store is not valid JSON`, 422);
-        }
-      }
-      // 404 here means the index is ahead of the content, or behind a delete.
-      if (res.status !== 404) {
-        throw new StoreError(`Could not read ${key} (${res.status})`, 502);
+    if (versions.length === 0) {
+      /*
+       * Nothing in the versioned folder. This is either a store that has
+       * never been written, or one written by the earlier single-file
+       * arrangement — so look for that file before concluding it is empty.
+       * The next save moves it into the folder and this stops mattering.
+       */
+      const legacy = await list({ prefix: key });
+      const hit = legacy.blobs.find((b) => b.pathname === key);
+      if (hit) {
+        const data = await fetchJson<T>(hit.url, key);
+        if (data) return { data, version: versionOf(data) };
       }
     }
 
@@ -118,29 +145,34 @@ async function readJson<T>(
 }
 
 async function writeJson(key: string, value: unknown): Promise<void> {
-  const body = JSON.stringify(value, null, 2) + "\n";
+  /*
+   * A Buffer, not a string.
+   *
+   * put() given a string leaves the encoding to the transport, and the
+   * accented text and em-dashes in this catalogue are exactly the bytes
+   * that suffer when something re-encodes them. A Buffer says "these bytes,
+   * as they are", and the charset below says how to read them back.
+   */
+  const body = Buffer.from(JSON.stringify(value, null, 2) + "\n", "utf8");
 
-  // The snapshot goes first. If the live write then fails, there is a spare
-  // copy; if the snapshot fails, the live file is untouched. Either way
-  // nothing is half-written.
+  const dir = versionDir(key);
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-  await put(`${HISTORY_PREFIX}/${key}/${stamp}.json`, body, {
+  await put(`${dir}${stamp}.json`, body, {
     access: "public",
     contentType: "application/json; charset=utf-8",
     addRandomSuffix: false,
   });
 
-
-  await put(key, body, {
-    access: "public",
-    contentType: "application/json; charset=utf-8",
-    addRandomSuffix: false,
-    allowOverwrite: true,
-    // Do not let the CDN hold these at all. They are small, read by the server
-    // through a cache of its own, and must never be stale after a save.
-    cacheControlMaxAge: 0,
-  });
-
+  // Pruning is best-effort and comes AFTER the write that matters. A store
+  // that keeps a few files too many is untidy; one that fails a save because
+  // housekeeping threw is broken.
+  try {
+    const { blobs } = await list({ prefix: dir });
+    const stale = newestFirst(blobs, dir).slice(KEEP_VERSIONS);
+    if (stale.length) await del(stale.map((b) => b.url));
+  } catch (err) {
+    console.error("[STORE] could not prune old versions", err);
+  }
 }
 
 /* ── Equipment ───────────────────────────────────────────────────────────── */
@@ -148,6 +180,7 @@ async function writeJson(key: string, value: unknown): Promise<void> {
 /** Both documents already stamp the moment they were written; reuse it. */
 const equipmentVersion = (d: EquipmentSource) => d._meta?.syncedAt ?? "";
 const pricingVersion = (d: PricingSource) => d._meta?.updatedAt ?? "";
+const contactVersion = (d: ContactSource) => d._meta?.updatedAt ?? "";
 
 export async function readEquipment(): Promise<Versioned<EquipmentSource>> {
   if (isConfigured()) {
@@ -230,9 +263,36 @@ async function assertVersion<T>(
   }
 }
 
+/* ── Contact ─────────────────────────────────────────────────────────────── */
+
+export async function readContact(): Promise<Versioned<ContactSource>> {
+  if (isConfigured()) {
+    const stored = await readJson<ContactSource>(CONTACT_KEY, contactVersion);
+    if (stored) return { ...stored, seeded: false };
+  }
+  return { data: SEED_CONTACT_SOURCE, version: "", seeded: true };
+}
+
+export async function writeContact(
+  data: ContactSource,
+  expectedVersion: string
+): Promise<string> {
+  await assertVersion(CONTACT_KEY, expectedVersion, contactVersion);
+  await writeJson(CONTACT_KEY, data);
+  return contactVersion(data);
+}
+
 /* ── Photos ──────────────────────────────────────────────────────────────── */
 
-/** Returns the public URL to store on the row. */
+/**
+ * Returns the public URL to store on the row.
+ *
+ * The filename carries a stamp for the same reason the data files do: a
+ * pathname that never changes has a URL the CDN caches for a minute, so
+ * replacing a photo went on showing the old one. A new name cannot be a cache
+ * hit. The previous file in that slot is then removed, so a slot still holds
+ * exactly one photo.
+ */
 export async function putPhoto(
   code: string,
   index: number,
@@ -243,11 +303,27 @@ export async function putPhoto(
   if (!isConfigured()) {
     throw new StoreError("Storage is not connected, so photos cannot be uploaded.", 503);
   }
-  const result = await put(
-    `${PHOTO_PREFIX}/${code.toLowerCase()}/${String(index).padStart(2, "0")}.${ext}`,
-    bytes,
-    { access: "public", contentType, addRandomSuffix: false, allowOverwrite: true }
-  );
+  const dir = `${PHOTO_PREFIX}/${code.toLowerCase()}/`;
+  const slot = String(index).padStart(2, "0");
+
+  const result = await put(`${dir}${slot}-${Date.now().toString(36)}.${ext}`, bytes, {
+    access: "public",
+    contentType,
+    addRandomSuffix: false,
+  });
+
+  // Best-effort, and only after the new file exists: a slot left holding two
+  // photos is untidy, a failed upload is not.
+  try {
+    const { blobs } = await list({ prefix: dir });
+    const previous = blobs.filter(
+      (b) => b.pathname.startsWith(`${dir}${slot}`) && b.url !== result.url
+    );
+    if (previous.length) await del(previous.map((b) => b.url));
+  } catch (err) {
+    console.error("[STORE] could not remove the previous photo", err);
+  }
+
   return result.url;
 }
 

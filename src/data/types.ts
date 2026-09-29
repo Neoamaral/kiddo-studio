@@ -191,6 +191,46 @@ export interface PricingSource {
   addons: Addon[];
 }
 
+/* ── Contact ─────────────────────────────────────────────────────────────── */
+
+/** One social profile. `url` is what the link opens; `handle` is what it shows. */
+export interface SocialLink {
+  id: string;
+  /** "INSTAGRAM" */
+  label: string;
+  /** "@kiddo.studio" */
+  handle: string;
+  url: string;
+}
+
+/**
+ * Everything the studio publishes about how to reach it.
+ *
+ * Written by the admin panel. One record, used by the contact page, the home
+ * location band, the footer, the hero coordinates AND the address that booking
+ * and contact emails are delivered to — so there is one place to change when
+ * the studio moves or the phone number changes.
+ */
+export interface ContactSource {
+  _meta: { source: string; updatedAt: string };
+  /** Shown on the site AND where enquiries are delivered. */
+  email: string;
+  emailNote: string;
+  phone: string;
+  phoneNote: string;
+  address: {
+    street: string;
+    postcode: string;
+    city: string;
+    country: string;
+  };
+  /** e.g. "Free parking" — appended to the coordinates line. */
+  addressNote: string;
+  coordinates: { lat: number; lon: number };
+  whatsapp: { handle: string; url: string; note: string };
+  social: SocialLink[];
+}
+
 /* ── Spaces ──────────────────────────────────────────────────────────────── */
 
 /** A physical room. `both` is a PRODUCT that occupies two of these. */

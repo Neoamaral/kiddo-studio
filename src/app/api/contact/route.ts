@@ -1,5 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
+import { getContact } from "@/lib/data-source";
+
+/*
+ * The sender stays hard-coded on purpose.
+ *
+ * noreply@kiddostudio.pt is the address Resend has verified for this domain.
+ * Sending as anything else is rejected, so it is not something the panel may
+ * change. The RECIPIENT is the studio's own address and does come from the
+ * panel — that is the one that ever needs changing.
+ */
+const FROM = "Kiddo Studio <noreply@kiddostudio.pt>";
+
 
 export async function POST(req: NextRequest) {
   try {
@@ -17,13 +29,17 @@ export async function POST(req: NextRequest) {
       const resend = new Resend(process.env.RESEND_API_KEY);
       // Resolves with { error } instead of throwing — an unverified domain
       // would otherwise silently swallow every enquiry.
+      const { email: studio } = await getContact();
       const sent = await resend.emails.send({
-        from: "Kiddo Studio <noreply@kiddostudio.pt>",
-        to: ["studio@kiddostudio.pt"],
+        from: FROM,
+        to: [studio],
         replyTo: email,
         subject: `[Contact] ${subject || "New message"} — from ${name}`,
         text: `Name: ${name}\nEmail: ${email}\nSubject: ${subject || "—"}\n\nMessage:\n${message}`,
       });
+      if (sent.error) {
+        console.error("[CONTACT FORM] notification email FAILED", sent.error);
+      }
     }
 
     return NextResponse.json({ ok: true });

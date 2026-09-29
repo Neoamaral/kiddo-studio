@@ -1,5 +1,5 @@
 import BookingPageClient from "@/components/booking/BookingPageClient";
-import { getCatalogue, getPricing } from "@/lib/data-source";
+import { getCatalogue, getContact, getPricing } from "@/lib/data-source";
 
 /**
  * Rendered per request, not prerendered.
@@ -18,6 +18,10 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Book the Studio — Kiddo Studio" };
 
 export default async function BookingPage() {
-  const [pricing, catalogue] = await Promise.all([getPricing(), getCatalogue()]);
-  return <BookingPageClient pricing={pricing} catalogue={catalogue} />;
+  const [pricing, catalogue, contact] = await Promise.all([
+    getPricing(),
+    getCatalogue(),
+    getContact(),
+  ]);
+  return <BookingPageClient pricing={pricing} catalogue={catalogue} contact={contact} />;
 }

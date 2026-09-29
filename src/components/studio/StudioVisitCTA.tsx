@@ -6,7 +6,7 @@ import {
   kiddoColors,
 } from "@/components/kiddo-assets";
 
-export default function StudioVisitCTA() {
+export default function StudioVisitCTA({ phoneHref }: { phoneHref: string }) {
   return (
     <section
       className="section-dark"
@@ -119,7 +119,7 @@ export default function StudioVisitCTA() {
 
           <SmallTextArrowLink
             label="OR CALL US"
-            href="tel:+351000000000"
+            href={phoneHref}
             color="rgba(255,255,255,0.7)"
             underlineColor={kiddoColors.lime}
           />

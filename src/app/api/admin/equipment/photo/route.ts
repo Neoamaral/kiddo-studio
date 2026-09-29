@@ -88,7 +88,7 @@ export async function DELETE(req: NextRequest) {
 
   const src = req.nextUrl.searchParams.get("src") ?? "";
   // Only ever our own store, and only a path this route could have written.
-  if (!/^https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com\/equipment\/[a-z0-9-]+\/\d{2}\.(jpg|png|webp)$/.test(src)) {
+  if (!/^https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com\/equipment\/[a-z0-9-]+\/\d{2}(-[a-z0-9]+)?\.(jpg|png|webp)$/.test(src)) {
     return NextResponse.json({ error: "Invalid photo URL" }, { status: 400 });
   }
 

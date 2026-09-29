@@ -15,7 +15,8 @@
     "gcal:smoke": "tsx scripts/gcal-smoke.ts",
     "check:availability": "tsx scripts/check-availability.ts",
     "admin:hash": "tsx scripts/admin-hash.ts",
-    "check:admin": "tsx scripts/check-admin.ts"
+    "check:admin": "tsx scripts/check-admin.ts",
+    "check:contact": "tsx scripts/check-contact.ts"
   },
   "dependencies": {
     "@vercel/blob": "^2.8.0",

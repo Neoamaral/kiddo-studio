@@ -14,8 +14,9 @@ import {
   kiddoColors,
 } from "@/components/kiddo-assets";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import type { ContactView } from "@/data/contact";
 
-export default function ContactSection() {
+export default function ContactSection({ contact }: { contact: ContactView }) {
   const isMobile = useIsMobile();
   const [form, setForm] = useState({ name: "", email: "", message: "", type: "STUDIO" });
   const [sent, setSent] = useState(false);
@@ -172,24 +173,34 @@ export default function ContactSection() {
             {[
               {
                 label: "EMAIL",
-                value: "play@kiddostudio.pt",
-                note: "Replies within 24h — usually faster",
+                value: contact.email,
+                href: contact.mailtoHref,
+                note: contact.emailNote,
               },
               {
                 label: "PHONE",
-                value: "+351 21 000 0000",
-                note: "Mon–Fri, 9h–19h, Lisbon time",
+                value: contact.phone,
+                href: contact.telHref,
+                note: contact.phoneNote,
               },
               {
                 label: "STUDIO",
-                value: "Rua Saudade 14, Lisboa",
-                note: "38.7223° N · 9.1393° W · Free parking",
+                value: contact.addressLine,
+                href: contact.mapsHref,
+                note: [contact.coordinatesLabel, contact.addressNote]
+                  .filter(Boolean)
+                  .join(" · "),
               },
-              {
-                label: "WHATSAPP",
-                value: "@kiddostudio",
-                note: "For quick chats and out-of-hours",
-              },
+              ...(contact.whatsappHandle
+                ? [
+                    {
+                      label: "WHATSAPP",
+                      value: contact.whatsappHandle,
+                      href: contact.whatsappHref,
+                      note: contact.whatsappNote,
+                    },
+                  ]
+                : []),
             ].map((ch) => (
               <div
                 key={ch.label}
@@ -216,7 +227,9 @@ export default function ContactSection() {
                     letterSpacing: "-0.01em",
                   }}
                 >
-                  {ch.value}
+                  <a href={ch.href} style={{ color: "inherit", textDecoration: "none" }}>
+                    {ch.value}
+                  </a>
                 </p>
                 <p
                   style={{
@@ -252,14 +265,12 @@ export default function ContactSection() {
               >
                 FOLLOW ALONG:
               </span>
-              {[
-                { l: "INSTAGRAM", h: "@kiddo.studio" },
-                { l: "BEHANCE", h: "kiddostudio" },
-                { l: "LINKEDIN", h: "kiddo-studio" },
-              ].map((s) => (
+              {contact.social.map((s) => (
                 <a
-                  key={s.l}
-                  href="#"
+                  key={s.id}
+                  href={s.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   style={{ display: "flex", alignItems: "center", gap: 6 }}
                 >
                   <span
@@ -269,9 +280,9 @@ export default function ContactSection() {
                       fontWeight: 700,
                     }}
                   >
-                    {s.l}
+                    {s.label}
                   </span>
-                  <span style={{ fontSize: 12, color: "rgba(0,0,0,0.55)" }}>{s.h}</span>
+                  <span style={{ fontSize: 12, color: "rgba(0,0,0,0.55)" }}>{s.handle}</span>
                   <ScribbleArrowIcon variant="diagonal" width={14} height={14} />
                 </a>
               ))}
@@ -600,7 +611,7 @@ export default function ContactSection() {
             >
               RUA SAUDADE 14
             </p>
-            <p style={{ fontSize: 12, color: "rgba(0,0,0,0.6)" }}>1100-321 Lisboa, Portugal</p>
+            <p style={{ fontSize: 12, color: "rgba(0,0,0,0.6)" }}>{contact.addressRegion}</p>
             <a
               href="https://maps.google.com/?q=Rua+Saudade+14+Lisboa"
               target="_blank"

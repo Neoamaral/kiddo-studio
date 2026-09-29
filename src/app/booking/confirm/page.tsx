@@ -9,6 +9,7 @@
 
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
+import { getContact } from "@/lib/data-source";
 import { kiddoColors } from "@/components/kiddo-assets";
 import { TokenError, verifyBookingToken } from "@/lib/booking-token";
 import { findBooking } from "@/lib/gcal/events";
@@ -34,7 +35,10 @@ const mono: React.CSSProperties = {
   color: "rgba(0,0,0,0.45)",
 };
 
-function Shell({ children }: { children: React.ReactNode }) {
+/* Async, so the eight call sites below do not each have to thread the
+   contact record down by hand. */
+async function Shell({ children }: { children: React.ReactNode }) {
+  const contact = await getContact();
   return (
     <>
       <Header />
@@ -57,7 +61,7 @@ function Shell({ children }: { children: React.ReactNode }) {
           </div>
         </div>
       </main>
-      <Footer />
+      <Footer contact={contact} />
     </>
   );
 }

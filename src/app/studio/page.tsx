@@ -1,4 +1,4 @@
-import { getCatalogue, getPricing } from "@/lib/data-source";
+import { getCatalogue, getContact, getPricing } from "@/lib/data-source";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import StudioCoverSection from "@/components/studio/StudioCoverSection";
@@ -15,7 +15,7 @@ import StudioVisitCTA from "@/components/studio/StudioVisitCTA";
  * revalidateTag nor revalidatePath moved it. Only a redeploy did.
  *
  * The cost is small and in the right place: the expensive part, reading the
- * store, stays behind unstable_cache and is purged on save. What happens per
+ * store, stays behind a short-lived cache and is purged on save. What happens per
  * request is React rendering.
  */
 export const dynamic = "force-dynamic";
@@ -27,7 +27,7 @@ export const metadata = {
 };
 
 export default async function StudioPage() {
-  const pricing = await getPricing();
+  const [pricing, contact] = await Promise.all([getPricing(), getContact()]);
   return (
     <>
       <Header />
@@ -35,9 +35,9 @@ export default async function StudioPage() {
         <StudioCoverSection />
         <StudioRoomsSection packages={pricing.packages} />
         <StudioFloorplanSection />
-        <StudioVisitCTA />
+        <StudioVisitCTA phoneHref={contact.telHref} />
       </main>
-      <Footer />
+      <Footer contact={contact} />
     </>
   );
 }

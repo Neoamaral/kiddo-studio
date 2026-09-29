@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getCatalogue, getPricing } from "@/lib/data-source";
+import { getCatalogue, getContact, getPricing } from "@/lib/data-source";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +13,11 @@ const card: React.CSSProperties = {
 };
 
 export default async function AdminHome() {
-  const [catalogue, pricing] = await Promise.all([getCatalogue(), getPricing()]);
+  const [catalogue, pricing, contact] = await Promise.all([
+    getCatalogue(),
+    getPricing(),
+    getContact(),
+  ]);
   return (
     <>
       <h1
@@ -57,6 +61,18 @@ export default async function AdminHome() {
             studio packages
           </span>
         </Link>
+
+        <Link href="/admin/contact" style={card}>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.2em" }}>
+            CONTACT
+          </span>
+          <div style={{ fontFamily: "var(--font-display)", fontSize: 19, lineHeight: 1.3, marginTop: 6 }}>
+            {contact.email}
+          </div>
+          <span style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "rgba(0,0,0,0.55)" }}>
+            {contact.addressLine} — and where enquiries arrive
+          </span>
+        </Link>
       </div>
 
       <p
@@ -69,9 +85,8 @@ export default async function AdminHome() {
           maxWidth: 560,
         }}
       >
-        Saving writes to the repository and the site rebuilds itself. Changes go
-        live about a minute later — the page you are reading keeps showing the
-        version that is currently deployed.
+        Saving publishes straight away — there is no rebuild to wait for. Every
+        save also keeps a dated copy, so a change can be undone.
       </p>
     </>
   );

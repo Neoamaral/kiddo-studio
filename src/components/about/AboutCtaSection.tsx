@@ -6,9 +6,9 @@ import {
   SmallTextArrowLink,
   kiddoColors,
 } from "@/components/kiddo-assets";
-import { BOOKING_HREF, STUDIO_COORDINATES } from "@/lib/site";
+import { BOOKING_HREF } from "@/lib/site";
 
-export default function AboutCtaSection() {
+export default function AboutCtaSection({ coordinates }: { coordinates: string }) {
   return (
     <section style={{ background: kiddoColors.lime }} className="overflow-hidden">
       <div className="kiddo-container py-20 lg:py-28">
@@ -52,7 +52,7 @@ export default function AboutCtaSection() {
 
             {/* Coordinates */}
             <p className="font-mono text-[9px] tracking-widest text-black/40 uppercase mt-2">
-              {STUDIO_COORDINATES}
+              {coordinates}
             </p>
           </div>
 

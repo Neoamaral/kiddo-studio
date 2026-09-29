@@ -14,10 +14,9 @@ import {
   kiddoColors,
 } from "@/components/kiddo-assets";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import type { ContactView } from "@/data/contact";
 
-const MAPS_HREF = "https://maps.google.com/?q=Rua+Saudade+14+Lisboa";
-
-export default function FindUsSection() {
+export default function FindUsSection({ contact }: { contact: ContactView }) {
   const isMobile = useIsMobile();
 
   return (
@@ -58,7 +57,7 @@ export default function FindUsSection() {
               marginBottom: 14,
             }}
           >
-            RUA SAUDADE 14
+            {contact.street}
           </h2>
 
           <p
@@ -69,7 +68,7 @@ export default function FindUsSection() {
               marginBottom: 24,
             }}
           >
-            1100-321 Lisboa, Portugal
+            {contact.addressRegion}
           </p>
 
           <div
@@ -118,7 +117,7 @@ export default function FindUsSection() {
           </div>
 
           <a
-            href={MAPS_HREF}
+            href={contact.mapsHref}
             target="_blank"
             rel="noopener noreferrer"
             style={{

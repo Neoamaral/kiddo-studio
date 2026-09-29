@@ -3,6 +3,7 @@ import Link from "next/link";
 import { KiddoLogo } from "@/components/ui/KiddoLogo";
 import { CircularBadgeSeal } from "@/components/kiddo-assets";
 import { kiddoColors } from "@/components/kiddo-assets/kiddoColors";
+import type { ContactView } from "@/data/contact";
 
 const footerCols = [
   {
@@ -24,22 +25,14 @@ const footerCols = [
   {
     title: "INFO",
     links: [
-      { label: "Lisbon, Portugal", href: "/contact"  },
+      { label: "__CITY__",         href: "/contact"  },
       { label: "FAQ",              href: "/about"    },
       { label: "Terms",            href: "/about"    },
     ],
   },
-  {
-    title: "FOLLOW",
-    links: [
-      { label: "Instagram", href: "https://instagram.com" },
-      { label: "Behance",   href: "https://behance.net"   },
-      { label: "LinkedIn",  href: "https://linkedin.com"  },
-    ],
-  },
 ];
 
-export default function Footer() {
+export default function Footer({ contact }: { contact: ContactView }) {
   return (
     <footer className="section-dark">
       <div className="kiddo-container py-16">
@@ -48,14 +41,15 @@ export default function Footer() {
           <div className="flex flex-col gap-3">
             <KiddoLogo color="white" size="md" />
             <p className="font-mono text-[10px] tracking-widest text-white/40 uppercase mt-2">
-              Lisbon, Portugal
+              {contact.cityCountry}
             </p>
             <p className="font-body text-[12px] text-white/40 max-w-[160px] leading-relaxed">
               A creative playground for filmmakers, photographers and dreamers.
             </p>
           </div>
 
-          {/* Nav columns */}
+          {/* Nav columns. The city row is the studio's, so it comes from the
+              contact record rather than from this list. */}
           {footerCols.map((col) => (
             <div key={col.title} className="flex flex-col gap-3">
               <span className="font-mono text-[9px] tracking-[0.25em] text-white/30 uppercase">
@@ -67,11 +61,30 @@ export default function Footer() {
                   href={link.href}
                   className="font-body text-[13px] text-white/60 hover:text-white transition-colors"
                 >
-                  {link.label}
+                  {link.label === "__CITY__" ? contact.cityCountry : link.label}
                 </Link>
               ))}
             </div>
           ))}
+
+          {/* FOLLOW. Separate from the nav columns because these leave the site
+              — and because they are edited in the panel, not in this file. */}
+          <div className="flex flex-col gap-3">
+            <span className="font-mono text-[9px] tracking-[0.25em] text-white/30 uppercase">
+              FOLLOW
+            </span>
+            {contact.social.map((s) => (
+              <a
+                key={s.id}
+                href={s.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-body text-[13px] text-white/60 hover:text-white transition-colors"
+              >
+                {s.label.charAt(0) + s.label.slice(1).toLowerCase()}
+              </a>
+            ))}
+          </div>
 
           {/* Badge */}
           <div className="hidden lg:flex items-center">

@@ -1,4 +1,5 @@
 import Header from "@/components/layout/Header";
+import { getContact } from "@/lib/data-source";
 import Footer from "@/components/layout/Footer";
 import Link from "next/link";
 import {
@@ -9,7 +10,12 @@ import {
   HandDrawnStarIcon,
 } from "@/components/kiddo-assets";
 
-export default function NotFound() {
+/* Rendered per request like every other page that shows the footer: otherwise
+   the 404 page would keep whatever contact details were current at build. */
+export const dynamic = "force-dynamic";
+
+export default async function NotFound() {
+  const contact = await getContact();
   return (
     <>
       <Header />
@@ -145,7 +151,7 @@ export default function NotFound() {
           </div>
         </section>
       </main>
-      <Footer />
+      <Footer contact={contact} />
     </>
   );
 }

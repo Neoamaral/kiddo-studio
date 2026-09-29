@@ -12,9 +12,9 @@ import {
   SmallTextArrowLink,
   kiddoColors,
 } from "@/components/kiddo-assets";
-import { BOOKING_HREF, STUDIO_COORDINATES } from "@/lib/site";
+import { BOOKING_HREF } from "@/lib/site";
 
-export default function HeroSection() {
+export default function HeroSection({ coordinates }: { coordinates: string }) {
   return (
     <section className="section-cream min-h-[90vh] overflow-hidden">
       <div className="kiddo-container grid grid-cols-1 lg:grid-cols-[55%_45%] gap-0 min-h-[90vh]">
@@ -142,7 +142,7 @@ export default function HeroSection() {
           <p
             className="absolute bottom-8 left-0 font-mono text-[9px] text-black/40 z-20"
           >
-            {STUDIO_COORDINATES}
+            {coordinates}
           </p>
 
           {/* Vertical "KIDDO STUDIO" right edge */}

@@ -39,3 +39,5 @@ npm-debug.log*
 asset/
 
 .vercel
+
+.env*.local

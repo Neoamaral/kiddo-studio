@@ -1,0 +1,46 @@
+{
+  "_meta": {
+    "source": "Contact details. Written by the Kiddo admin panel.",
+    "updatedAt": ""
+  },
+  "email": "studio@kiddostudio.pt",
+  "emailNote": "Replies within 24h — usually faster",
+  "phone": "+351 21 000 0000",
+  "phoneNote": "Mon–Fri, 9h–19h, Lisbon time",
+  "address": {
+    "street": "Rua Saudade 14",
+    "postcode": "1100-321",
+    "city": "Lisboa",
+    "country": "Portugal"
+  },
+  "addressNote": "Free parking",
+  "coordinates": {
+    "lat": 38.7223,
+    "lon": -9.1393
+  },
+  "whatsapp": {
+    "handle": "@kiddostudio",
+    "url": "https://wa.me/351210000000",
+    "note": "For quick chats and out-of-hours"
+  },
+  "social": [
+    {
+      "id": "instagram",
+      "label": "INSTAGRAM",
+      "handle": "@kiddo.studio",
+      "url": "https://instagram.com/kiddo.studio"
+    },
+    {
+      "id": "behance",
+      "label": "BEHANCE",
+      "handle": "kiddostudio",
+      "url": "https://behance.net/kiddostudio"
+    },
+    {
+      "id": "linkedin",
+      "label": "LINKEDIN",
+      "handle": "kiddo-studio",
+      "url": "https://linkedin.com/company/kiddo-studio"
+    }
+  ]
+}

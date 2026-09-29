@@ -7,7 +7,7 @@ import { formatDateHuman, todayInLisbon } from "@/lib/date";
 import { slotById, slotTimeLabel } from "@/data/booking";
 import { spaceById } from "@/data/spaces";
 import { packageById } from "@/data/pricing";
-import { getCatalogue, getPricing } from "@/lib/data-source";
+import { getCatalogue, getContact, getPricing } from "@/lib/data-source";
 import type { MonthAvailability } from "@/data/availability";
 import { eur } from "@/lib/money";
 import { isCalendarConfigured } from "@/lib/gcal/auth";
@@ -225,9 +225,10 @@ export async function POST(req: NextRequest) {
       // The SDK RESOLVES with { error } for API failures rather than throwing,
       // so an unverified domain or a bad key would otherwise be invisible: the
       // booking would report success and nobody would ever be told about it.
+      const { email: studioEmail } = await getContact();
       const sent = await resend.emails.send({
         from: "Kiddo Studio <noreply@kiddostudio.pt>",
-        to: ["studio@kiddostudio.pt"],
+        to: [studioEmail],
         replyTo: r.email,
         subject: `[Booking ${ref}] ${space?.label ?? r.spaceId} — ${formatDateHuman(r.date)} — ${r.name}`,
         text,
@@ -251,7 +252,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           error:
-            "We couldn't record your booking just now. Please email studio@kiddostudio.pt — sorry about this.",
+            `We couldn't record your booking just now. Please email ${(await getContact()).email} — sorry about this.`,
         },
         { status: 502 }
       );

@@ -31,6 +31,7 @@ import { BOOKABLE_SPACES } from "@/data/spaces";
 import { packageById } from "@/data/pricing";
 import type { PricingView } from "@/data/pricing";
 import type { CatalogueView } from "@/data/equipment";
+import type { ContactView } from "@/data/contact";
 import type { DateBounds } from "@/data/availability";
 import { equipmentRemaining, slotTooSoon, slotState } from "@/data/availability";
 import { computeQuote } from "@/lib/quote";
@@ -94,10 +95,12 @@ const fieldStyle: React.CSSProperties = {
 export default function BookingPageClient({
   pricing,
   catalogue,
+  contact,
 }: {
-  /** Both arrive from the page. Editable data must never be a module import. */
+  /** All three arrive from the page. Editable data must never be a module import. */
   pricing: PricingView;
   catalogue: CatalogueView;
+  contact: ContactView;
 }) {
   const isMobile = useIsMobile();
 
@@ -1036,7 +1039,7 @@ export default function BookingPageClient({
         </div>
       </section>
 
-      <Footer />
+      <Footer contact={contact} />
     </>
   );
 }

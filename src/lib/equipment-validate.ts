@@ -43,7 +43,7 @@ const PHOTO_PREFIX = "equipment";
  * nothing else is.
  */
 const BLOB_PHOTO =
-  /^https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com\/[a-z0-9-]+\/[a-z0-9-]+\/\d{2}\.(jpg|png|webp)$/;
+  /^https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com\/[a-z0-9-]+\/[a-z0-9-]+\/\d{2}(-[a-z0-9]+)?\.(jpg|png|webp)$/;
 
 function checkRate(rate: Rate, where: string, out: ValidationResult): void {
   if (!rate || typeof rate !== "object" || !("kind" in rate)) {
