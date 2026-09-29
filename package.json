@@ -18,7 +18,7 @@
     "check:admin": "tsx scripts/check-admin.ts",
     "check:contact": "tsx scripts/check-contact.ts",
     "db:migrate": "tsx --env-file=.env.local scripts/db-migrate.ts",
-    "check:holds": "tsx scripts/check-holds.ts"
+    "check:holds": "tsx --env-file-if-exists=.env.local scripts/check-holds.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "1.1.0",

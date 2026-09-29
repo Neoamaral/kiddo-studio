@@ -28,8 +28,15 @@ import type { EquipmentItem } from "../src/data/types";
 
 let failures = 0;
 let skipped = 0;
+/*
+ * Counted and reported, so a pass can never be vacuous. A suite that ran zero
+ * assertions and announced success has happened in this project before, and it
+ * cost a whole afternoon of wrong conclusions.
+ */
+let assertions = 0;
 
 function check(label: string, actual: unknown, expected: unknown) {
+  assertions++;
   const ok = JSON.stringify(actual) === JSON.stringify(expected);
   if (ok) return;
   failures++;
@@ -193,7 +200,7 @@ check("a fully booked day reads as full", dayState(D, allTaken, bounds, wellBefo
 /* ── 7. What only the database can promise ────────────────────────────────── */
 
 async function databaseChecks(): Promise<void> {
-  if (!process.env.DATABASE_URL) {
+  if (!process.env.TEST_DATABASE_URL) {
     skipped++;
     console.log(
       "\nSKIPPED  the database half — DATABASE_URL is not set.\n" +
@@ -205,7 +212,7 @@ async function databaseChecks(): Promise<void> {
     return;
   }
   const { databaseHoldChecks } = await import("./check-holds-db");
-  failures += await databaseHoldChecks(check);
+  await databaseHoldChecks(check);
 }
 
 databaseChecks().then(() => {
@@ -214,9 +221,17 @@ databaseChecks().then(() => {
     console.error(`check-holds: ${failures} failure(s)`);
     process.exit(1);
   }
+  if (assertions < 40) {
+    console.error(
+      `check-holds: only ${assertions} assertion(s) ran — something did not execute`
+    );
+    process.exit(1);
+  }
   if (skipped > 0) {
-    console.log("check-holds: the pure assertions passed; the database half was SKIPPED");
+    console.log(
+      `check-holds: ${assertions} pure assertions passed; the database half was SKIPPED`
+    );
     return;
   }
-  console.log("check-holds: all assertions passed");
+  console.log(`check-holds: all ${assertions} assertions passed`);
 });

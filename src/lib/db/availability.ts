@@ -33,6 +33,7 @@ import {
 } from "@/lib/availability-build";
 import { getCatalogue } from "@/lib/data-source";
 import { READ_TIMEOUT_MS, db, isDbConfigured, rows, withTimeout } from "./client";
+import { cachedMonth, rememberMonth } from "./availability-cache";
 
 /**
  * The month's bounds, as real instants.
@@ -146,43 +147,18 @@ export async function readMonthAvailability(
 
 /* ── Cache ───────────────────────────────────────────────────────────────── */
 
-/**
- * A few seconds of cache, and the reason is NOT latency.
- *
- * Same-region Neon answers this in single-digit milliseconds, so the read is
- * cheap. But /api/availability is public and unauthenticated, and the rate
- * limiter in guard.ts is per serverless instance and admits as much ("the real
- * limit is looser than configured"). Without a cache, anything hitting that
- * endpoint in a loop is hitting the database in a loop, and the free compute
- * plan is metered by the hour.
- *
- * Unlike the Google version's TTL, this one is not load-bearing for
- * correctness: we are the only writer, so every change purges it. The TTL is
- * only the ceiling for instances that did not serve the write.
- *
- * Plain variables, not unstable_cache — this project has measured twice that
- * unstable_cache does not release on revalidateTag, on revalidatePath, or on
- * its own TTL. See src/lib/data-source.ts.
- */
-const TTL_MS = 5_000;
-const slots = new Map<string, { value: MonthAvailability; at: number }>();
-
+/** Why there is a cache at all, and why it is five seconds, is in the module. */
 export async function readMonthAvailabilityCached(
   spaceId: string,
   month: string
 ): Promise<MonthAvailability> {
   const key = `${spaceId}:${month}`;
-  const hit = slots.get(key);
-  if (hit && Date.now() - hit.at < TTL_MS) return hit.value;
+  const hit = cachedMonth(key);
+  if (hit) return hit;
 
   const value = await readMonthAvailability(spaceId, month);
-  // Never cache a degraded answer: it would keep a transient database blip on
-  // screen after the database came back.
-  if (!value.degraded) slots.set(key, { value, at: Date.now() });
+  rememberMonth(key, value);
   return value;
 }
 
-/** Called after anything that changes a hold, in the process that changed it. */
-export function purgeAvailability(): void {
-  slots.clear();
-}
+export { purgeAvailability } from "./availability-cache";
