@@ -71,12 +71,24 @@ export function rateLimited(req: NextRequest, bucket: string, cfg: RateLimit): b
  * Only checks when an Origin is present: same-origin form posts and server-side
  * calls legitimately omit it, and rejecting those would break the site rather
  * than protect it.
+ *
+ * Compared against the HOST HEADER, not req.url. Next normalises req.url's
+ * host — a server bound to 127.0.0.1 reports `localhost` there — so comparing
+ * the two rejected genuine same-origin requests with a 403. That made every
+ * form on the site unusable against a local production build, and it would do
+ * the same behind any proxy that rewrites the host.
+ *
+ * Trusting x-forwarded-host is safe HERE because this only defends against
+ * browser CSRF: a browser cannot set that header, and a non-browser client can
+ * already send whatever Origin it likes.
  */
 export function wrongOrigin(req: NextRequest): boolean {
   const origin = req.headers.get("origin");
   if (!origin) return false;
+  const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
+  if (!host) return false;
   try {
-    return new URL(origin).host !== new URL(req.url).host;
+    return new URL(origin).host !== host;
   } catch {
     return true;
   }
