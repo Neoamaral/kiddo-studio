@@ -16,7 +16,13 @@ import {
   verifySession,
 } from "../src/lib/admin/auth";
 import { validateCatalogue, codesUsedByBundles } from "../src/lib/equipment-validate";
-import type { EquipmentBundle, EquipmentSource, EquipmentSourceRow } from "../src/data/types";
+import { validatePricing } from "../src/lib/pricing-validate";
+import type {
+  EquipmentBundle,
+  EquipmentSource,
+  EquipmentSourceRow,
+  PricingSource,
+} from "../src/data/types";
 
 process.env.ADMIN_SESSION_SECRET ||= "test-secret-at-least-32-characters-long!!";
 
