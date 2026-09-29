@@ -8,7 +8,7 @@ import StudioVisitCTA from "@/components/studio/StudioVisitCTA";
 export const metadata = {
   title: "The Space — Kiddo Studio",
   description:
-    "Four distinct creative spaces in the heart of Lisbon. Cyclorama, black box, creative area, and prop room.",
+    "Distinct creative spaces in the heart of Lisbon. Cyclorama, black box, creative area, and makeup lounge.",
 };
 
 export default function StudioPage() {

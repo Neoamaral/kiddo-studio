@@ -87,7 +87,7 @@ export default function StudioVisitCTA() {
           }}
         >
           Nothing beats walking through it. Book a free 30-minute visit and see
-          all four spaces before committing to a date. No pressure, no invoice.
+          every space before committing to a date. No pressure, no invoice.
         </p>
 
         {/* Buttons */}

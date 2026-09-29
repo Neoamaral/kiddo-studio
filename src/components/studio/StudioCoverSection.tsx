@@ -1,12 +1,19 @@
 "use client";
-import { HandwrittenWord, kiddoColors } from "@/components/kiddo-assets";
+import { kiddoColors } from "@/components/kiddo-assets";
 
+/**
+ * "3.1", not "3,1". The site is written in English throughout — 180 M², 24/7 —
+ * and a decimal comma in the middle of that reads as a typo rather than as
+ * localisation.
+ *
+ * The loading bay is not a new claim: the floorplan section already says
+ * "Loading bay on the east side. 3.6m clearance." This surfaces it.
+ */
 const STATS = [
-  ["TOTAL", "420 M²"],
-  ["CEILING", "3.2 M"],
-  ["ZONES", "4"],
+  ["TOTAL", "180 M²"],
+  ["CEILING", "3.1 M"],
   ["ACCESS", "24/7"],
-  ["PARKING", "ON-SITE"],
+  ["UNLOADING & LOADING", "DEDICATED AREA"],
 ];
 
 export default function StudioCoverSection() {
@@ -54,6 +61,7 @@ export default function StudioCoverSection() {
         style={{
           position: "relative",
           zIndex: 2,
+          width: "100%",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
@@ -91,60 +99,38 @@ export default function StudioCoverSection() {
         style={{
           position: "relative",
           zIndex: 2,
+          width: "100%",
           flex: 1,
           display: "flex",
           alignItems: "flex-end",
           paddingBottom: 48,
         }}
       >
-        <div
-          style={{
-            width: "100%",
-            display: "grid",
-            gridTemplateColumns: "1fr",
-            gap: 40,
-          }}
-          className="lg:grid-cover-cols"
-        >
-          {/* Left: headline */}
-          <div>
-            <p
-              style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: 9,
-                letterSpacing: "0.25em",
-                textTransform: "uppercase",
-                color: "rgba(255,255,255,0.6)",
-                marginBottom: 16,
-              }}
-            >
-              THE STUDIO · A TOUR IN FOUR ROOMS
-            </p>
-            <h1
-              style={{
-                fontFamily: "var(--font-display)",
-                letterSpacing: "-0.01em",
-                lineHeight: 0.85,
-                textTransform: "uppercase",
-                fontWeight: 400,
-                fontSize: "clamp(72px, 12vw, 180px)",
-                color: "#fff",
-              }}
-            >
-              FOUR
-              <br />
-              WORLDS.
-              <br />
-              <HandwrittenWord
-                text="one roof."
-                color={kiddoColors.lime}
-                fontSize="0.72em"
-                rotation={-2}
-              />
-            </h1>
-          </div>
+        <div style={{ width: "100%", maxWidth: 620 }}>
+          {/*
+            This label is now the page's <h1>.
 
-          {/* Right: description + CTA */}
+            The display headline that used to sit below it was the ONLY h1 on
+            /studio, so deleting it outright would have left the page with no
+            level-one heading at all. This line already says what the page is,
+            which is an h1's whole job — it just keeps its small mono styling.
+          */}
+          <h1
+            style={{
+              fontFamily: "var(--font-mono)",
+              fontSize: 9,
+              letterSpacing: "0.25em",
+              textTransform: "uppercase",
+              color: "rgba(255,255,255,0.6)",
+              marginBottom: 20,
+              fontWeight: 400,
+            }}
+          >
+            THE STUDIO · A TOUR OF THE ROOMS
+          </h1>
+
+          {/* One column, not the old 1.4fr/1fr split: with the headline gone
+              the left track held a 9px label against a full paragraph. */}
           <div
             style={{
               borderTop: "1px solid rgba(255,255,255,0.2)",
@@ -152,22 +138,21 @@ export default function StudioCoverSection() {
               display: "flex",
               flexDirection: "column",
               gap: 24,
-              maxWidth: 460,
+              alignItems: "flex-start",
             }}
-            className="lg:max-w-none"
           >
             <p
               style={{
                 fontFamily: "var(--font-mono)",
-                fontSize: 13,
+                fontSize: 14,
                 letterSpacing: "0.05em",
                 color: "rgba(255,255,255,0.75)",
                 lineHeight: 1.7,
               }}
             >
-              420 m² of raw creative space. Four distinct environments under one
-              roof in Lisbon. Each room is built for a different kind of work —
-              and all are yours to command.
+              180 m² of raw creative space. Distinct environments under one roof
+              in Lisbon. Each room is built for a different kind of work — and
+              all are yours to command.
             </p>
             <a
               href="/booking"
@@ -182,7 +167,6 @@ export default function StudioCoverSection() {
                 textTransform: "uppercase",
                 padding: "12px 24px",
                 fontWeight: 700,
-                alignSelf: "flex-start",
                 textDecoration: "none",
               }}
             >
@@ -249,15 +233,6 @@ export default function StudioCoverSection() {
           ))}
         </div>
       </div>
-
-      <style>{`
-        @media (min-width: 1024px) {
-          .lg\\:grid-cover-cols {
-            grid-template-columns: 1.4fr 1fr !important;
-            align-items: flex-end;
-          }
-        }
-      `}</style>
     </section>
   );
 }

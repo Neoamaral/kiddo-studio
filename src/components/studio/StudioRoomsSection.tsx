@@ -49,7 +49,7 @@ const ROOMS: Room[] = [
     desc: "Seamless 6×4m cyclorama wall. Floor-to-ceiling curve. Drive a car in if you want.",
     specs: [
       ["WALL", "6m × 4m"],
-      ["CEILING", "3.2m"],
+      ["CEILING", "3.1m"],
       ["LIGHT", "Mixed"],
       ["ACCESS", "Drive-in"],
     ],

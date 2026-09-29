@@ -75,8 +75,8 @@ export default function StudioFloorplanSection() {
               }}
             >
               Loading bay on the east side. 3.6m clearance. Suitable for trucks,
-              large set pieces, and equipment drops. Direct internal access to all
-              four zones.
+              large set pieces, and equipment drops. Direct internal access to
+              every zone.
             </p>
           </div>
         </div>
