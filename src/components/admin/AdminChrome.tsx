@@ -11,6 +11,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
+import { KiddoLogo } from "@/components/ui/KiddoLogo";
 
 const TABS = [
   { href: "/admin", label: "OVERVIEW" },
@@ -65,15 +66,34 @@ export default function AdminChrome({
             flexWrap: "wrap",
           }}
         >
-          <span
-            style={{
-              fontFamily: "var(--font-display)",
-              fontSize: 18,
-              letterSpacing: "-0.01em",
-            }}
+          {/*
+            The real wordmark, as on the site. It was typeset here as "KIDDO
+            ADMIN" in the display font, which is not the studio's logo — the
+            panel is the studio's own tool and should not be the one place
+            wearing a different mark.
+
+            A link home, so there is always a way back to the site; ADMIN sits
+            beside it as a label rather than as part of the name.
+          */}
+          <Link
+            href="/"
+            style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none" }}
+            title="Back to the site"
           >
-            KIDDO ADMIN
-          </span>
+            <KiddoLogo color="black" height={26} />
+            <span
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: 9,
+                letterSpacing: "0.22em",
+                color: "rgba(0,0,0,0.45)",
+                border: "1px solid rgba(0,0,0,0.2)",
+                padding: "2px 6px",
+              }}
+            >
+              ADMIN
+            </span>
+          </Link>
 
           <nav style={{ display: "flex", gap: 4, flex: 1, flexWrap: "wrap" }}>
             {TABS.map((t) => {
