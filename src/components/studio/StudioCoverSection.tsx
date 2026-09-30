@@ -6,8 +6,12 @@ import { kiddoColors } from "@/components/kiddo-assets";
  * and a decimal comma in the middle of that reads as a typo rather than as
  * localisation.
  *
- * The loading bay is not a new claim: the floorplan section already says
- * "Loading bay on the east side. 3.6m clearance." This surfaces it.
+ * UNLOADING & LOADING is the studio's own claim, and it stays the studio's.
+ * It used to point at a line in the floorplan section — "Loading bay on the
+ * east side. 3.6m clearance." — but that line was invented, contradicted this
+ * bar's own 3.1 M ceiling, and is gone now that the section carries the
+ * surveyed drawing. The drawing shows a ramped, step-free entrance, which
+ * supports easy loading but is not a bay with a measurement on it.
  */
 const STATS = [
   ["TOTAL", "180 M²"],

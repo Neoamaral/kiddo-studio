@@ -1,9 +1,36 @@
 "use client";
+
+/**
+ * The floor plan.
+ *
+ * It used to be a hand-drawn SVG: a rectangle split into four, with a compass
+ * rose and a "LOADING BAY" label. None of it matched the building — the rooms
+ * were the wrong shapes, in the wrong places, and the copy claimed a 3.6m
+ * clearance on a page whose own stat bar says the ceiling is 3.1m.
+ *
+ * It is the studio's surveyed drawing now, so the dimensions on it are real and
+ * there is nothing to keep in sync by hand. The legend below is still markup
+ * rather than part of the picture, so it stays legible when the image is
+ * scaled down and is readable by a screen reader.
+ */
+
+import Image from "next/image";
 import { HandwrittenWord, kiddoColors } from "@/components/kiddo-assets";
-import { useIsMobile } from "@/hooks/useIsMobile";
+
+/**
+ * Sampled from the drawing itself, so a swatch cannot drift from the area it
+ * names. STUDIO & WORKING AREA is the paper showing through, which is why it
+ * is the one with a border instead of a fill.
+ */
+const LEGEND: readonly { label: string; fill: string; outlined?: boolean }[] = [
+  { label: "CYCLORAMA", fill: "#EBF5B0" },
+  { label: "STUDIO & WORKING AREA", fill: "#FFFFFF", outlined: true },
+  { label: "OFFICE", fill: "#D3D1CC" },
+  { label: "CHILLING AREA", fill: "#EBE9E3" },
+  { label: "MAKEUP & DRESSING", fill: "#BFBDB9" },
+];
 
 export default function StudioFloorplanSection() {
-  const isMobile = useIsMobile();
   return (
     <section
       style={{
@@ -74,320 +101,48 @@ export default function StudioFloorplanSection() {
                 maxWidth: 380,
               }}
             >
-              Loading bay on the east side. 3.6m clearance. Suitable for trucks,
-              large set pieces, and equipment drops. Direct internal access to
-              every zone.
+              {/*
+                Every figure here is on the drawing. The old copy invented a
+                3.6m loading-bay clearance, which the stat bar at the top of
+                this page contradicted with a 3.1m ceiling.
+              */}
+              13.50 × 8.00 m of studio floor, with the cyclorama in the west
+              corner and the makeup and dressing room off the far end. Step-free
+              entry by ramp. Every room opens onto the studio.
             </p>
           </div>
         </div>
 
-        {/* SVG Floor Plan */}
+        {/* The drawing */}
         <div
           style={{
-            background: "#F8F5EE",
+            background: "#FFFBF5",
             border: "1px solid rgba(0,0,0,0.1)",
-            overflow: isMobile ? "auto" : "hidden",
-            position: "relative",
-            WebkitOverflowScrolling: "touch",
-          } as React.CSSProperties}
+            padding: "clamp(12px, 3vw, 32px)",
+            display: "flex",
+            justifyContent: "center",
+          }}
         >
-          <svg
-            viewBox="0 0 800 450"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            style={{ width: "100%", height: "100%", minWidth: isMobile ? 600 : undefined, display: "block", aspectRatio: "16/9" }}
-          >
-            {/* Grid pattern */}
-            <defs>
-              <pattern
-                id="grid"
-                width="20"
-                height="20"
-                patternUnits="userSpaceOnUse"
-              >
-                <path
-                  d="M 20 0 L 0 0 0 20"
-                  fill="none"
-                  stroke="rgba(0,0,0,0.06)"
-                  strokeWidth="0.6"
-                />
-              </pattern>
-            </defs>
-            <rect width="800" height="450" fill="url(#grid)" />
-
-            {/* Outer perimeter */}
-            <rect
-              x="40"
-              y="40"
-              width="720"
-              height="370"
-              stroke={kiddoColors.black}
-              strokeWidth="3"
-              fill="none"
-            />
-
-            {/* Room fills */}
-            {/* Cyclorama — large left section */}
-            <rect
-              x="41"
-              y="41"
-              width="330"
-              height="240"
-              fill={`rgba(200,232,32,0.30)`}
-            />
-            {/* Black Box — top right */}
-            <rect
-              x="371"
-              y="41"
-              width="230"
-              height="240"
-              fill={`rgba(17,17,17,0.08)`}
-            />
-            {/* Creative Area — bottom right */}
-            <rect
-              x="371"
-              y="281"
-              width="230"
-              height="129"
-              fill={`rgba(255,255,255,0.5)`}
-            />
-            {/* Prop Room — bottom left */}
-            <rect
-              x="41"
-              y="281"
-              width="330"
-              height="129"
-              fill={`rgba(17,17,17,0.14)`}
-            />
-
-            {/* Room divider lines */}
-            {/* Vertical center divider */}
-            <line
-              x1="371"
-              y1="40"
-              x2="371"
-              y2="410"
-              stroke={kiddoColors.black}
-              strokeWidth="1.5"
-            />
-            {/* Horizontal divider */}
-            <line
-              x1="40"
-              y1="281"
-              x2="760"
-              y2="281"
-              stroke={kiddoColors.black}
-              strokeWidth="1.5"
-            />
-            {/* Right section vertical — separating black box from corridor */}
-            <line
-              x1="601"
-              y1="40"
-              x2="601"
-              y2="410"
-              stroke={kiddoColors.black}
-              strokeWidth="1.5"
-              strokeDasharray="4 3"
-            />
-
-            {/* Corridor / loading bay indicator */}
-            <rect
-              x="602"
-              y="41"
-              width="157"
-              height="368"
-              fill="rgba(26,26,26,0.04)"
-            />
-
-            {/* Room labels */}
-            {/* Cyclorama */}
-            <text
-              x="206"
-              y="140"
-              fontFamily="'Arial', sans-serif"
-              fontSize="9"
-              fontWeight="700"
-              fill="rgba(26,26,26,0.5)"
-              textAnchor="middle"
-              letterSpacing="3"
-              textDecoration="none"
-            >
-              CYCLORAMA
-            </text>
-            <text
-              x="206"
-              y="155"
-              fontFamily="'Arial', sans-serif"
-              fontSize="8"
-              fill="rgba(26,26,26,0.35)"
-              textAnchor="middle"
-              letterSpacing="2"
-            >
-              6M × 4M
-            </text>
-            <text
-              x="206"
-              y="168"
-              fontFamily="'Arial', sans-serif"
-              fontSize="7"
-              fill="rgba(26,26,26,0.3)"
-              textAnchor="middle"
-              letterSpacing="2"
-            >
-              ZONE 01
-            </text>
-
-            {/* Black Box */}
-            <text
-              x="486"
-              y="140"
-              fontFamily="'Arial', sans-serif"
-              fontSize="9"
-              fontWeight="700"
-              fill="rgba(26,26,26,0.45)"
-              textAnchor="middle"
-              letterSpacing="3"
-            >
-              BLACK BOX
-            </text>
-            <text
-              x="486"
-              y="155"
-              fontFamily="'Arial', sans-serif"
-              fontSize="8"
-              fill="rgba(26,26,26,0.3)"
-              textAnchor="middle"
-              letterSpacing="2"
-            >
-              BLACKOUT
-            </text>
-            <text
-              x="486"
-              y="168"
-              fontFamily="'Arial', sans-serif"
-              fontSize="7"
-              fill="rgba(26,26,26,0.25)"
-              textAnchor="middle"
-              letterSpacing="2"
-            >
-              ZONE 02
-            </text>
-
-            {/* Creative Area */}
-            <text
-              x="486"
-              y="335"
-              fontFamily="'Arial', sans-serif"
-              fontSize="9"
-              fontWeight="700"
-              fill="rgba(26,26,26,0.5)"
-              textAnchor="middle"
-              letterSpacing="3"
-            >
-              CREATIVE
-            </text>
-            <text
-              x="486"
-              y="350"
-              fontFamily="'Arial', sans-serif"
-              fontSize="7"
-              fill="rgba(26,26,26,0.3)"
-              textAnchor="middle"
-              letterSpacing="2"
-            >
-              ZONE 03
-            </text>
-
-            {/* Makeup & lounge */}
-            <text
-              x="206"
-              y="335"
-              fontFamily="'Arial', sans-serif"
-              fontSize="9"
-              fontWeight="700"
-              fill="rgba(26,26,26,0.5)"
-              textAnchor="middle"
-              letterSpacing="3"
-            >
-              MAKEUP
-            </text>
-            <text
-              x="206"
-              y="350"
-              fontFamily="'Arial', sans-serif"
-              fontSize="7"
-              fill="rgba(26,26,26,0.3)"
-              textAnchor="middle"
-              letterSpacing="2"
-            >
-              ZONE 04
-            </text>
-
-            {/* Loading bay label */}
-            <text
-              x="680"
-              y="230"
-              fontFamily="'Arial', sans-serif"
-              fontSize="8"
-              fill="rgba(26,26,26,0.4)"
-              textAnchor="middle"
-              letterSpacing="2"
-              transform="rotate(-90, 680, 230)"
-            >
-              LOADING BAY
-            </text>
-
-            {/* Entrance dot — lime */}
-            <circle cx="206" cy="409" r="7" fill={kiddoColors.lime} />
-            <circle
-              cx="206"
-              cy="409"
-              r="7"
-              stroke={kiddoColors.black}
-              strokeWidth="1.5"
-              fill="none"
-            />
-            <text
-              x="206"
-              y="430"
-              fontFamily="'Arial', sans-serif"
-              fontSize="7"
-              fill="rgba(26,26,26,0.5)"
-              textAnchor="middle"
-              letterSpacing="2"
-            >
-              ENTRANCE
-            </text>
-
-            {/* North compass */}
-            <circle
-              cx="740"
-              cy="70"
-              r="18"
-              stroke={kiddoColors.black}
-              strokeWidth="1.5"
-              fill="rgba(248,245,238,0.9)"
-            />
-            <path
-              d="M 740 56 L 745 68 L 740 64 L 735 68 Z"
-              fill={kiddoColors.black}
-            />
-            <path
-              d="M 740 84 L 745 72 L 740 76 L 735 72 Z"
-              fill="rgba(26,26,26,0.25)"
-            />
-            <text
-              x="740"
-              y="60"
-              fontFamily="'Arial', sans-serif"
-              fontSize="7"
-              fontWeight="700"
-              fill={kiddoColors.black}
-              textAnchor="middle"
-            >
-              N
-            </text>
-          </svg>
+          <Image
+            src="/images/studio-floorplan.png"
+            alt={
+              "Floor plan of Kiddo Studio. The studio floor is 13.50 by 8.00 " +
+              "metres, with a 3.71 by 3.15 metre cyclorama in the west corner, " +
+              "a working area alongside it, and a 4.70 by 4.46 metre makeup and " +
+              "dressing room at the east end. A chilling area sits between the " +
+              "studio and the entrance, with a 6.50 by 4.15 metre office, a " +
+              "restroom and a kitchenette off it. Entry is from the north " +
+              "through a ramped entrance."
+            }
+            width={1024}
+            height={1536}
+            sizes="(min-width: 1024px) 760px, 100vw"
+            style={{
+              width: "100%",
+              maxWidth: 760,
+              height: "auto",
+            }}
+          />
         </div>
 
         {/* Legend */}
@@ -397,25 +152,18 @@ export default function StudioFloorplanSection() {
             gap: 24,
             marginTop: 20,
             flexWrap: "wrap",
+            alignItems: "center",
           }}
         >
-          {[
-            { color: `rgba(200,232,32,0.5)`, label: "CYCLORAMA" },
-            { color: `rgba(17,17,17,0.18)`, label: "BLACK BOX" },
-            { color: `rgba(255,255,255,0.9)`, label: "CREATIVE AREA", border: true },
-            { color: `rgba(17,17,17,0.25)`, label: "MAKEUP & LOUNGE" },
-          ].map(({ color, label, border }) => (
-            <div
-              key={label}
-              style={{ display: "flex", alignItems: "center", gap: 8 }}
-            >
+          {LEGEND.map(({ label, fill, outlined }) => (
+            <div key={label} style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <div
                 style={{
                   width: 16,
                   height: 16,
-                  background: color,
-                  border: border
-                    ? "1px solid rgba(0,0,0,0.2)"
+                  background: fill,
+                  border: outlined
+                    ? "1px solid rgba(0,0,0,0.3)"
                     : "1px solid rgba(0,0,0,0.1)",
                   flexShrink: 0,
                 }}
@@ -433,6 +181,19 @@ export default function StudioFloorplanSection() {
               </span>
             </div>
           ))}
+
+          <span
+            style={{
+              marginLeft: "auto",
+              fontFamily: "var(--font-mono)",
+              fontSize: 9,
+              letterSpacing: "0.2em",
+              textTransform: "uppercase",
+              color: "rgba(26,26,26,0.4)",
+            }}
+          >
+            Dimensions in metres
+          </span>
         </div>
       </div>
 
