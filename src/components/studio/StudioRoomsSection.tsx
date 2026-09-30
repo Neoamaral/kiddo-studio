@@ -87,9 +87,11 @@ const ROOMS: Room[] = [
     num: "03",
     code: "III",
     label: "CREATIVE AREA",
-    headline: "MESSY IDEAS,",
-    handword: "welcome.",
-    desc: "Warm corner with a leather sofa, art wall, and good light.",
+    headline: "CHILLING",
+    handword: "area.",
+    // What the corner is FOR, rather than what is in it — the specs below
+    // already list the sofa and the light.
+    desc: "While you wait you can enjoy a great creative environment.",
     specs: [
       ["SOFA", "Real leather"],
       ["LIGHT", "Side daylight"],
@@ -200,13 +202,21 @@ function RoomHeader({
         style={{
           marginLeft: "auto",
           background: room.accent,
-          color: kiddoColors.black,
+          /*
+           * The label sits ON the accent, so it cannot also BE the accent.
+           * Rooms 03 and 04 use the ink as their accent, which made
+           * "INCLUDED W/ RENTAL" black on black — an empty bar where the one
+           * line about what a room costs should be.
+           */
+          color: room.accent === kiddoColors.black ? kiddoColors.cream : kiddoColors.black,
           padding: "6px 14px",
           fontFamily: "var(--font-mono)",
           fontSize: 9,
           letterSpacing: "0.2em",
           textTransform: "uppercase",
-          flexShrink: 0,
+          // Allowed to give way. It used to refuse to shrink or wrap, which is
+          // what made this row wider than a phone in the first place.
+          minWidth: 0,
         }}
       >
         {room.price ?? fromLabel}
@@ -307,12 +317,41 @@ function RoomBody({ room, textColor }: { room: Room; textColor: string }) {
         ))}
       </div>
 
-      <SmallTextArrowLink
-        label="BOOK THIS SPACE"
-        href="/booking"
-        color={textColor}
-        underlineColor={room.accent}
-      />
+      {/*
+        Only a room you can actually book offers to book it.
+
+        The creative area and the makeup lounge are not products — they are not
+        in SPACES at all, which is precisely why spaceById returns nothing for
+        them. They come with any rental, so sending someone to /booking to
+        "book this space" offered something that cannot be bought, and the
+        badge above the headline has said INCLUDED W/ RENTAL the whole time.
+
+        Derived rather than flagged, so a room cannot be listed as bookable
+        here and absent from the booking flow.
+      */}
+      {spaceById(room.id)?.bookable ? (
+        <SmallTextArrowLink
+          label="BOOK THIS SPACE"
+          href="/booking"
+          color={textColor}
+          underlineColor={room.accent}
+        />
+      ) : (
+        <p
+          style={{
+            fontFamily: "var(--font-mono)",
+            fontSize: 11,
+            letterSpacing: "0.15em",
+            textTransform: "uppercase",
+            color: textColor,
+            borderTop: `2px solid ${room.accent}`,
+            paddingTop: 10,
+            alignSelf: "flex-start",
+          }}
+        >
+          No booking needed — it&apos;s included
+        </p>
+      )}
     </div>
   );
 }
@@ -619,35 +658,47 @@ export default function StudioRoomsSection({
       })}
 
       <style>{`
+        /*
+         * minmax(0, 1fr), never a bare 1fr.
+         *
+         * A bare 1fr is really minmax(auto, 1fr), so the track cannot
+         * shrink below its widest child's minimum. On a 390px phone the track
+         * measured 412px — wider than the container — and everything inside
+         * ran off the right edge, where the section's overflow:hidden quietly
+         * cut it. "INCLUDED W/ RENTAL" read "INCLUDED W/ RENTA".
+         *
+         * It is silent because nothing scrolls: the page reports no horizontal
+         * overflow at all, because the clipping has already happened.
+         */
         .room-grid-right {
           display: grid;
-          grid-template-columns: 1fr;
+          grid-template-columns: minmax(0, 1fr);
           gap: 40px;
           align-items: center;
         }
         .room-grid-left {
           display: grid;
-          grid-template-columns: 1fr;
+          grid-template-columns: minmax(0, 1fr);
           gap: 48px;
           align-items: center;
         }
         .room-grid-split {
           display: grid;
-          grid-template-columns: 1fr;
+          grid-template-columns: minmax(0, 1fr);
           gap: 48px;
           align-items: center;
         }
         @media (min-width: 1024px) {
           .room-grid-right {
-            grid-template-columns: 1.2fr 1fr;
+            grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
             gap: 64px;
           }
           .room-grid-left {
-            grid-template-columns: 1fr 1.1fr;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
             gap: 56px;
           }
           .room-grid-split {
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
             gap: 56px;
           }
         }
