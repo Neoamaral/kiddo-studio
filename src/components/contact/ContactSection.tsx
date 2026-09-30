@@ -675,14 +675,37 @@ export default function ContactSection({ contact }: { contact: ContactView }) {
             FIND US.
           </h2>
         </div>
-        <div style={{ position: "relative", aspectRatio: "16/9", marginTop: 24 }}>
-          <StudioMap />
-          {/* Floating address card */}
+        {/*
+          Capped at the artwork's own width and centred. The map used to be an
+          SVG, so running it full-bleed cost nothing; the illustration is 1670px
+          wide, and a section that keeps growing past that was upscaling it —
+          0.65x on a 2560px monitor. Now the widest it is ever drawn is 1:1.
+        */}
+        <div
+          style={{
+            position: "relative",
+            marginTop: 24,
+            maxWidth: 1670,
+            marginLeft: "auto",
+            marginRight: "auto",
+          }}
+        >
+          <div style={{ position: "relative", aspectRatio: "16/9" }}>
+            <StudioMap />
+          </div>
+          {/*
+            The address card floats over the map on a desktop and sits BELOW it
+            on a phone. Floating, it is about 260 wide and 230 tall over a map
+            only 219 tall at 390px wide: it covered the studio pin, the KIDDO
+            STUDIO label and two of the four landmarks. `static` ignores the
+            bottom/left above, so the card simply follows the map in the flow.
+          */}
           <div
             style={{
-              position: "absolute",
+              position: isMobile ? "static" : "absolute",
               bottom: 30,
-              left: isMobile ? 12 : 64,
+              left: 64,
+              margin: isMobile ? "16px 20px 0" : undefined,
               background: "#fff",
               padding: 16,
               maxWidth: 260,
