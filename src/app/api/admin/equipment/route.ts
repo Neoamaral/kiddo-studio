@@ -2,9 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin/session";
 import { loadCatalogue, saveCatalogue, SaveRejected } from "@/lib/admin/catalogue";
 import { StoreError } from "@/lib/admin/store";
-import { codesUsedByBundles } from "@/lib/equipment-validate";
-import { EQUIPMENT_BUNDLES } from "@/data/equipment";
-import type { EquipmentSourceRow, Rate, RatePeriod } from "@/data/types";
+import { SEED_BUNDLES } from "@/data/equipment";
+import type { EquipmentBundle, EquipmentSourceRow, Rate, RatePeriod } from "@/data/types";
 
 /** Reads the repository on every request, so it can never be prerendered. */
 export const dynamic = "force-dynamic";
@@ -17,12 +16,18 @@ export async function GET(req: NextRequest) {
     const { data, version, seeded, readOnly } = await loadCatalogue();
     return NextResponse.json({
       rows: data.rows,
+      // readEquipment guarantees this is filled, even for a document written
+      // before bundles were editable.
+      bundles: data.bundles ?? [],
       version,
       seeded,
       readOnly,
-      // The panel greys out the delete button for these instead of letting the
-      // save fail: a bundle naming missing gear silently breaks bookings.
-      lockedCodes: [...codesUsedByBundles(EQUIPMENT_BUNDLES)],
+      /*
+       * lockedCodes is gone. The panel derives it from the bundles it is
+       * editing, so the delete button unlocks the instant an item is taken out
+       * of a bundle. A server-sent list would describe the STORED document
+       * while the screen describes the proposed one.
+       */
       categories: [...new Set(data.rows.map((r) => r.category))],
     });
   } catch (err) {
@@ -58,6 +63,30 @@ function parseRate(v: unknown): Rate {
   };
 }
 
+/**
+ * Shape only, like parseRow — and for one reason that is not obvious.
+ *
+ * validateCatalogue never type-checks memberCodes. Round-trip
+ * `{"memberCodes": "CAM-01"}` and `for (const code of bundle.memberCodes)`
+ * iterates CHARACTERS: "C", "A", "M". That reaches storage and the booking
+ * page. The codes are uppercased here for the same reason parseRow uppercases
+ * a row's code — a member in the wrong case would match no row, and the save
+ * would be refused for a code the studio can see on screen.
+ */
+function parseBundle(v: unknown): EquipmentBundle {
+  const b = (v ?? {}) as Record<string, unknown>;
+  // parseRate never returns undefined, so "has a price" is decided out here.
+  const hasRate = b.rate !== null && b.rate !== undefined;
+  return {
+    id: str(b.id, 40).toLowerCase(),
+    label: str(b.label, 200),
+    memberCodes: Array.isArray(b.memberCodes)
+      ? b.memberCodes.slice(0, 40).map((c) => str(c, 40).toUpperCase()).filter(Boolean)
+      : [],
+    ...(hasRate ? { rate: parseRate(b.rate) } : {}),
+  };
+}
+
 function parseRow(v: unknown): EquipmentSourceRow {
   const r = (v ?? {}) as Record<string, unknown>;
   const photos = Array.isArray(r.photos)
@@ -87,7 +116,7 @@ export async function PUT(req: NextRequest) {
   const auth = requireAdmin(req);
   if (!auth.ok) return auth.response;
 
-  let body: { rows?: unknown; version?: unknown };
+  let body: { rows?: unknown; bundles?: unknown; version?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -96,6 +125,9 @@ export async function PUT(req: NextRequest) {
 
   if (!Array.isArray(body.rows)) {
     return NextResponse.json({ error: "rows must be an array" }, { status: 400 });
+  }
+  if (body.bundles !== undefined && !Array.isArray(body.bundles)) {
+    return NextResponse.json({ error: "bundles must be an array" }, { status: 400 });
   }
   // An empty version is legitimate: it means "I was editing the seed", and
   // the store only accepts it while nothing has been saved.
@@ -106,24 +138,34 @@ export async function PUT(req: NextRequest) {
   try {
     const { data } = await loadCatalogue();
 
-    // Deleting gear a bundle sells is refused here as well as in the UI: the
-    // panel is not the only thing that can send this request.
-    const locked = codesUsedByBundles(EQUIPMENT_BUNDLES);
-    const nowPresent = new Set(rows.map((r) => r.code));
-    const removed = [...locked].filter((c) => !nowPresent.has(c));
-    if (removed.length) {
-      return NextResponse.json(
-        {
-          error:
-            `${removed.join(", ")} cannot be deleted — a gear bundle sells it. ` +
-            `Remove it from the bundle first.`,
-        },
-        { status: 409 }
-      );
-    }
+    /*
+     * ABSENT means "this client does not manage bundles", EMPTY means "delete
+     * them all". They are not the same thing, and conflating them loses data:
+     * a panel tab opened before this shipped sends { rows, version } with no
+     * bundles key, and would wipe every bundle on its next save. The version
+     * check does not save us — that tab holds a current version and passes it
+     * cleanly.
+     */
+    const bundles =
+      body.bundles === undefined
+        ? (data.bundles ?? [...SEED_BUNDLES])
+        : body.bundles.map(parseBundle);
 
-    const saved = await saveCatalogue({ rows, previous: data, version });
-    return NextResponse.json({ ok: true, version: saved.version });
+    /*
+     * The bespoke 409 that refused to delete gear a bundle sells is gone.
+     *
+     * It compared the proposed rows against the STORED bundles, which is now a
+     * dead end with no way out: the studio takes CAM-01 out of the camera
+     * bundle and deletes the item in one save — the obvious way — and the
+     * stored bundle still names it, so the save is refused forever.
+     *
+     * validateCatalogue applies the same rule to the PROPOSED document, which
+     * is what gets written, and it still runs server-side — so the original
+     * reason for it ("the panel is not the only thing that can send this
+     * request") is fully kept.
+     */
+    const saved = await saveCatalogue({ rows, bundles, previous: data, version });
+    return NextResponse.json({ ok: true, version: saved.version, warnings: saved.warnings });
   } catch (err) {
     return errorResponse(err);
   }

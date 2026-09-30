@@ -188,6 +188,7 @@ export default function BookingPageClient({
       }, {
         packages: pricing.packages,
         items: catalogue.allItems,
+        bundles: catalogue.bundles,
         vatRate: pricing.vatRate,
         weekendMultiplier: pricing.weekendMultiplier,
       }),

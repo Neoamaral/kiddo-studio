@@ -130,7 +130,15 @@ const row = (over: Partial<EquipmentSourceRow> = {}): EquipmentSourceRow => ({
   ...over,
 });
 
-const cat = (rows: EquipmentSourceRow[]): EquipmentSource => ({
+/**
+ * Bundles live INSIDE the document now, not beside it. That is the whole point
+ * of the change: the validator can no longer be handed one set of bundles while
+ * a different set is written.
+ */
+const cat = (
+  rows: EquipmentSourceRow[],
+  bundles?: EquipmentBundle[]
+): EquipmentSource => ({
   _meta: {
     source: "test",
     notionPageId: "",
@@ -140,10 +148,14 @@ const cat = (rows: EquipmentSourceRow[]): EquipmentSource => ({
     photoCount: rows.reduce((n, r) => n + (r.photos?.length ?? 0), 0),
   },
   rows,
+  ...(bundles ? { bundles } : {}),
 });
 
-const errs = (rows: EquipmentSourceRow[], bundles: EquipmentBundle[] = []) =>
-  validateCatalogue(cat(rows), bundles).errors;
+const errs = (rows: EquipmentSourceRow[], bundles?: EquipmentBundle[]) =>
+  validateCatalogue(cat(rows, bundles)).errors;
+
+const warns = (rows: EquipmentSourceRow[], bundles?: EquipmentBundle[]) =>
+  validateCatalogue(cat(rows, bundles)).warnings;
 
 check("a clean catalogue has no errors", errs([row()]).length, 0);
 check("a clean catalogue has no warnings", validateCatalogue(cat([row()])).warnings.length, 0);
@@ -230,6 +242,107 @@ check(
 const used = codesUsedByBundles([bundle]);
 check("bundle members are listed as undeletable", used.has("CAM-01"), true);
 check("gear outside a bundle is deletable", used.has("AUD-01"), false);
+
+/* ── 6. Bundles are edited now, so their own shape is checked ────────────── */
+
+/*
+ * None of these rules existed while bundles were a constant: a typo was a pull
+ * request, not a Save button. They are the difference between a mistake caught
+ * on screen and a booking silently rejected weeks later.
+ */
+
+const lens = row({ code: "LNS-01", category: "LENSES", name: "35mm" });
+const good = [row(), lens];
+/** A valid bundle over `good`, with one field changed. */
+const b = (over: Partial<EquipmentBundle> = {}): EquipmentBundle => ({
+  id: "cam",
+  label: "Camera bundle",
+  memberCodes: ["CAM-01", "LNS-01"],
+  rate: { kind: "fixed", amount: 240, per: "day" },
+  ...over,
+});
+
+check("a document with NO bundles key at all is fine", errs(good).length, 0);
+check("an empty bundle list is fine — deleting them all is allowed", errs(good, []).length, 0);
+check("a well-formed bundle is fine", errs(good, [b()]).length, 0);
+
+check("a bundle with no id is caught", errs(good, [b({ id: "" })]).length, 1);
+check(
+  "an id with spaces or capitals is caught — it is a key, not a label",
+  errs(good, [b({ id: "Camera Bundle" })]).length,
+  1
+);
+check(
+  "two bundles sharing an id are caught — the second would be unreachable",
+  errs(good, [b(), b({ label: "Other" })]).length,
+  1
+);
+check("a bundle with no label is caught", errs(good, [b({ label: "  " })]).length, 1);
+check(
+  "a bundle that sells nothing is caught — it would price at zero",
+  errs(good, [b({ memberCodes: [] })]).length,
+  1
+);
+check(
+  "the same item listed twice is caught",
+  errs(good, [b({ memberCodes: ["CAM-01", "CAM-01"] })]).length,
+  1
+);
+check(
+  "a negative bundle price is caught",
+  errs(good, [b({ rate: { kind: "fixed", amount: -10, per: "day" } })]).length,
+  1
+);
+check(
+  "an unparseable bundle price is caught",
+  errs(good, [b({ rate: { kind: "fixed", amount: NaN, per: "day" } })]).length,
+  1
+);
+
+/*
+ * The on-request pair. A bundle with no price of its own sums its members, so
+ * one member priced on request makes it unpriceable — and bundleAmount returns
+ * null, which the booking turns into a rejection. An EXPLICIT price makes the
+ * member's rate irrelevant, and refusing that would block a legitimate bundle.
+ */
+const onRequest = [row(), row({ code: "LNS-01", category: "LENSES", name: "35mm",
+                                rate: { kind: "onRequest" } })];
+check(
+  "an unpriced bundle with an on-request member is caught",
+  errs(onRequest, [b({ rate: undefined })]).length,
+  1
+);
+check(
+  "but a fixed price makes that member's rate irrelevant",
+  errs(onRequest, [b()]).length,
+  0
+);
+
+check(
+  "a bundle dearer than its parts is a WARNING, not a refusal",
+  warns(good, [b({ rate: { kind: "fixed", amount: 999, per: "day" } })]).length,
+  1
+);
+check(
+  "and a discount is not warned about",
+  warns(good, [b({ rate: { kind: "fixed", amount: 100, per: "day" } })]).length,
+  0
+);
+check(
+  "a member with no units in stock is a warning",
+  warns([row(), row({ code: "LNS-01", category: "LENSES", name: "35mm", inStock: 0 })],
+        [b()]).length,
+  1
+);
+
+check(
+  "_meta.bundleCount that disagrees is caught",
+  validateCatalogue({
+    ...cat(good, [b()]),
+    _meta: { ...cat(good, [b()])._meta, bundleCount: 7 },
+  }).errors.length,
+  1
+);
 
 if (failures > 0) {
   console.error(`\n${failures} admin assertion(s) failed.`);

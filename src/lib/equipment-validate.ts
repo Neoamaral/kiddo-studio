@@ -142,14 +142,16 @@ function checkPhotos(row: EquipmentSourceRow, i: number, out: ValidationResult):
 /**
  * Every rule that can be decided from the data alone.
  *
- * `bundles` is passed in rather than imported so the caller can check PROPOSED
- * rows against the live bundles — which is exactly what the admin save path
- * needs before it writes.
+ * BUNDLES COME OUT OF `data`, NOT A SECOND ARGUMENT.
+ *
+ * They used to be passed in, because they lived in code and only the rows were
+ * proposed. Now both are proposed together, and a second argument would be a
+ * trap: the caller would naturally pass the LIVE bundles, so this would check
+ * the proposed rows against the stored bundles while the proposed ones were
+ * written — validating one document and saving another. No test would catch
+ * it, because the two usually agree.
  */
-export function validateCatalogue(
-  data: EquipmentSource,
-  bundles: readonly EquipmentBundle[] = []
-): ValidationResult {
+export function validateCatalogue(data: EquipmentSource): ValidationResult {
   const out: ValidationResult = { errors: [], warnings: [] };
 
   if (!data || !Array.isArray(data.rows)) {
@@ -177,23 +179,116 @@ export function validateCatalogue(
     }
   }
 
-  /*
-   * A bundle that names gear the catalogue no longer has is the worst failure
-   * mode here, because it is silent: bundleAmount() returns null, the code goes
-   * into unknownIds, and the booking is REJECTED. Nobody finds out until a
-   * client tries to book.
-   */
-  for (const bundle of bundles) {
-    for (const code of bundle.memberCodes) {
-      if (!data.rows.some((r) => r.code === code)) {
-        out.errors.push(
-          `bundle "${bundle.id}" references ${code}, which is not in the catalogue`
-        );
+  checkBundles(data, out);
+
+  return out;
+}
+
+/**
+ * The quick bundles.
+ *
+ * A bundle that names gear the catalogue no longer has is the worst failure
+ * here, because it is silent: bundleAmount() returns null, the code goes into
+ * unknownIds, and the booking is REJECTED. Nobody finds out until a client
+ * tries to book.
+ *
+ * The rest of these rules did not exist while bundles were a code constant —
+ * a typo was a pull request, not a save. They matter now.
+ */
+function checkBundles(data: EquipmentSource, out: ValidationResult): void {
+  const bundles = data.bundles;
+  if (bundles === undefined) return; // a document written before bundles moved
+  if (!Array.isArray(bundles)) {
+    out.errors.push("catalogue: bundles is not an array");
+    return;
+  }
+
+  const byCode = new Map(data.rows.map((r) => [r.code, r]));
+  const seenIds = new Set<string>();
+
+  for (const b of bundles) {
+    const where = `Bundle "${b?.label || b?.id || "?"}"`;
+
+    if (!b || typeof b !== "object") {
+      out.errors.push("catalogue: a bundle is missing or malformed");
+      continue;
+    }
+
+    if (!b.id) out.errors.push(`${where}: missing id`);
+    else if (!/^[a-z0-9-]+$/.test(b.id)) {
+      out.errors.push(
+        `${where}: the id "${b.id}" may only contain lowercase letters, numbers and dashes`
+      );
+    } else if (seenIds.has(b.id)) {
+      /*
+       * Not cosmetic. The lookup is `bundles.find(b => b.id === id)`, so the
+       * second one is unreachable and permanently unsellable, with no symptom
+       * anywhere.
+       */
+      out.errors.push(`${where}: duplicate id "${b.id}"`);
+    } else seenIds.add(b.id);
+
+    if (!b.label?.trim()) out.errors.push(`${where}: needs a label`);
+
+    if (!Array.isArray(b.memberCodes) || b.memberCodes.length === 0) {
+      /*
+       * Also not cosmetic: bundleAmount on an empty unpriced bundle sums to 0
+       * and returns 0, not null — a free line on an invoice.
+       */
+      out.errors.push(`${where}: sells nothing — add at least one item`);
+    } else {
+      const seenCodes = new Set<string>();
+      for (const code of b.memberCodes) {
+        if (seenCodes.has(code)) out.errors.push(`${where}: lists ${code} twice`);
+        seenCodes.add(code);
+
+        const item = byCode.get(code);
+        if (!item) {
+          out.errors.push(
+            `${where}: sells ${code}, which is not in the catalogue — ` +
+              `remove it from the bundle, or keep the item`
+          );
+          continue;
+        }
+        if (item.inStock === 0) {
+          out.warnings.push(`${where}: sells ${code}, which has no units in stock`);
+        }
+        if (!b.rate && item.rate?.kind === "onRequest") {
+          out.errors.push(
+            `${where}: has no price of its own and ${code} is priced on request, ` +
+              `so the bundle cannot be priced at all — give the bundle a fixed price`
+          );
+        }
+      }
+    }
+
+    if (b.rate) {
+      checkRate(b.rate, where, out);
+
+      // A bundle dearer than its parts is legal and almost certainly a mistake.
+      if (b.rate.kind === "fixed" && Number.isFinite(b.rate.amount)) {
+        let sum = 0;
+        let priceable = true;
+        for (const code of b.memberCodes ?? []) {
+          const r = byCode.get(code)?.rate;
+          if (!r || r.kind === "onRequest") { priceable = false; break; }
+          sum += r.kind === "free" ? 0 : r.amount;
+        }
+        if (priceable && b.rate.amount > sum) {
+          out.warnings.push(
+            `${where}: costs ${b.rate.amount}€ but its items come to ${sum}€ ` +
+              `individually — the bundle is dearer than buying the parts`
+          );
+        }
       }
     }
   }
 
-  return out;
+  if (data._meta?.bundleCount !== undefined && data._meta.bundleCount !== bundles.length) {
+    out.errors.push(
+      `_meta.bundleCount is ${data._meta.bundleCount} but there are ${bundles.length} bundles`
+    );
+  }
 }
 
 /** Codes a bundle depends on — the admin panel refuses to delete these. */

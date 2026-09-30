@@ -16,11 +16,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import source from "../src/data/equipment.source.json";
-import {
-  EQUIPMENT_BUNDLES,
-  MAPPED_CATEGORIES,
-  deriveCatalogue,
-} from "../src/data/equipment";
+import { MAPPED_CATEGORIES, deriveCatalogue } from "../src/data/equipment";
 import { validateCatalogue } from "../src/lib/equipment-validate";
 import type { EquipmentSource } from "../src/data/types";
 
@@ -28,9 +24,12 @@ const data = source as EquipmentSource;
 
 // This script validates the file in the repository — the seed. What the admin
 // panel saves is validated on its own way in, by the same rules.
-const EQUIPMENT_CATALOGUE = deriveCatalogue(data.rows).categories;
+// The bundles come out of the same file now, not out of code, so this checks
+// the seed exactly as the panel's save path checks a proposed document.
+const bundles = data.bundles ?? [];
+const EQUIPMENT_CATALOGUE = deriveCatalogue(data.rows, bundles).categories;
 
-const { errors, warnings } = validateCatalogue(data, EQUIPMENT_BUNDLES);
+const { errors, warnings } = validateCatalogue(data);
 
 /* ── Filesystem checks — terminal and CI only ────────────────────────────── */
 
@@ -133,7 +132,7 @@ if (errors.length) {
 }
 console.log(
   `OK — ${data.rows.length} items, ${EQUIPMENT_CATALOGUE.length} categories, ` +
-    `${EQUIPMENT_BUNDLES.length} bundles, ${photoTotal} photos${
+    `${bundles.length} bundles, ${photoTotal} photos${
       warnings.length ? `, ${warnings.length} warning(s)` : ""
     }.`
 );

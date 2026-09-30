@@ -37,6 +37,9 @@ const WEEKEND_MULTIPLIER = SEED_PRICING.weekendMultiplier;
 const DATA = {
   packages: PACKAGES,
   items: SEED_CATALOGUE.allItems,
+  // Bundles are part of the catalogue now, not a module constant, so the
+  // fixture carries them like every other editable thing.
+  bundles: SEED_CATALOGUE.bundles,
   vatRate: VAT_RATE,
   weekendMultiplier: WEEKEND_MULTIPLIER,
 };
@@ -169,14 +172,71 @@ check("quantity multiplies", withGear(WEEKDAY, 2), weekdayNet + gearRate * 2);
 
 /* ── 6. Bundles still exclude their own members ──────────────────────────── */
 
+/*
+ * The id is read from the seed, not written here. Bundles are editable now, so
+ * a literal "cam" would make this test fail the day someone legitimately
+ * renames one — which protects nothing. Same reasoning this file already gives
+ * for asserting invariants rather than prices.
+ */
+check("the seed ships at least one bundle", DATA.bundles.length > 0, true);
+const seedBundle = DATA.bundles[0];
+const aMember = seedBundle.memberCodes[0];
+
 const bundled = computeQuote({
   slotId: "fd", spaceId: "cyc", packageId: base.id, date: WEEKDAY,
-  addonIds: [], bundleIds: ["cam"], equipment: { "CAM-01": 1 },
+  addonIds: [], bundleIds: [seedBundle.id], equipment: { [aMember]: 1 },
 }, DATA);
 check(
   "a member inside a chosen bundle is not charged twice",
   bundled.subtotal,
   weekdayNet + (bundled.bundles[0]?.amount ?? -1)
+);
+
+/* An unpriced bundle costs what its parts cost. */
+const parts = ["CAM-01", "LNS-01"];
+const partsSum = parts.reduce(
+  (n, c) => n + (rateAmount(itemByCode(DATA.items, c)!.rate) ?? 0), 0
+);
+const SUMMED = {
+  ...DATA,
+  bundles: [{ id: "sum", label: "No price of its own", memberCodes: parts }],
+};
+check(
+  "a bundle with no price of its own costs the sum of its items",
+  computeQuote({
+    slotId: "fd", spaceId: "cyc", packageId: base.id, date: WEEKDAY,
+    addonIds: [], bundleIds: ["sum"],
+  }, SUMMED).bundles[0]?.amount,
+  partsSum
+);
+
+/* Two bundles sharing an item must not charge for it twice. */
+const OVERLAP = {
+  ...DATA,
+  bundles: [
+    { id: "a", label: "A", memberCodes: ["CAM-01", "LNS-01"],
+      rate: { kind: "fixed" as const, amount: 100, per: "day" as const } },
+    { id: "b", label: "B", memberCodes: ["CAM-01", "LNS-02"],
+      rate: { kind: "fixed" as const, amount: 100, per: "day" as const } },
+  ],
+};
+check(
+  "two bundles sharing an item still cost only the two bundles",
+  computeQuote({
+    slotId: "fd", spaceId: "cyc", packageId: base.id, date: WEEKDAY,
+    addonIds: [], bundleIds: ["a", "b"], equipment: { "CAM-01": 1 },
+  }, OVERLAP).subtotal,
+  weekdayNet + 200
+);
+
+/* An unknown bundle id is reported, never priced at zero. */
+check(
+  "an unknown bundle id is reported",
+  computeQuote({
+    slotId: "fd", spaceId: "cyc", packageId: base.id, date: WEEKDAY,
+    addonIds: [], bundleIds: ["no-such-bundle"],
+  }, DATA).unknownIds.join(","),
+  "no-such-bundle"
 );
 
 /* ── 7. Unknown ids are reported, never silently priced at zero ──────────── */

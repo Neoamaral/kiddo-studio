@@ -6,8 +6,12 @@
  *     rate card (src/data/pricing.source.json) are written by the admin panel.
  *     Edit them there, not by hand — a hand edit is fine but will be overwritten
  *     by the next save from the panel.
- *   - Everything else here — spaces, category metadata, bundles, helper
- *     functions — is code, and changes in code.
+ *   - The quick bundles live inside the equipment document, so they are
+ *     written by the panel too. They used to be a const in equipment.ts; a
+ *     bundle names catalogue codes, and only one document can keep those two
+ *     in step without a race.
+ *   - Everything else here — spaces, category metadata, helper functions — is
+ *     code, and changes in code.
  *
  * Notion is no longer upstream of the equipment catalogue. The sync never ran
  * (_meta.syncedAt was always empty) and the panel is the source of truth now.
@@ -116,8 +120,18 @@ export interface EquipmentSource {
     photoCount?: number;
     /** Last photo download. Separate from syncedAt — prices change far more often. */
     photosSyncedAt?: string;
+    /** How many bundles. Cross-checked, like rowCount and photoCount. */
+    bundleCount?: number;
   };
   rows: EquipmentSourceRow[];
+  /**
+   * The quick bundles, editable in the admin panel.
+   *
+   * OPTIONAL because documents written before bundles moved out of code have
+   * no such key. readEquipment() fills it from the seed in that case — see the
+   * note there, and why an explicit empty array must NOT be overwritten.
+   */
+  bundles?: EquipmentBundle[];
 }
 
 /* ── Studio pricing ──────────────────────────────────────────────────────── */

@@ -6,7 +6,7 @@
  * and could silently disagree.
  */
 
-import type { EquipmentItem, Euros, StudioPackage } from "@/data/types";
+import type { EquipmentBundle, EquipmentItem, Euros, StudioPackage } from "@/data/types";
 import type { ISODate } from "@/lib/date";
 import { ADDON_OPTIONS, slotById } from "@/data/booking";
 import {
@@ -19,7 +19,7 @@ import {
 } from "@/data/pricing";
 import { surchargeMultiplier, surchargeReason, type SurchargeReason } from "@/lib/surcharge";
 import { spaceById } from "@/data/spaces";
-import { EQUIPMENT_BUNDLES, bundleAmount, itemByCode } from "@/data/equipment";
+import { bundleAmount, itemByCode } from "@/data/equipment";
 import { rateAmount } from "@/lib/money";
 
 /**
@@ -37,6 +37,8 @@ import { rateAmount } from "@/lib/money";
 export interface QuoteData {
   packages: readonly StudioPackage[];
   items: readonly EquipmentItem[];
+  /** Editable in the panel, so it arrives with the data like everything else. */
+  bundles: readonly EquipmentBundle[];
   vatRate: number;
   weekendMultiplier: number;
 }
@@ -153,7 +155,7 @@ export function computeQuote(input: QuoteInput, data: QuoteData): Quote {
   const bundles: QuoteLine[] = [];
   const coveredByBundle = new Set<string>();
   for (const id of input.bundleIds ?? []) {
-    const bundle = EQUIPMENT_BUNDLES.find((b) => b.id === id);
+    const bundle = data.bundles.find((b) => b.id === id);
     if (!bundle) {
       unknownIds.push(id);
       continue;

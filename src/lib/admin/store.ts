@@ -19,7 +19,7 @@
 import { put, list, del } from "@vercel/blob";
 import { unstable_noStore } from "next/cache";
 import type { ContactSource, EquipmentSource, PricingSource } from "@/data/types";
-import { SEED_ROWS } from "@/data/equipment";
+import { SEED_BUNDLES, SEED_ROWS } from "@/data/equipment";
 import { SEED_PRICING_SOURCE } from "@/data/pricing";
 import { SEED_CONTACT_SOURCE } from "@/data/contact";
 
@@ -182,15 +182,33 @@ const equipmentVersion = (d: EquipmentSource) => d._meta?.syncedAt ?? "";
 const pricingVersion = (d: PricingSource) => d._meta?.updatedAt ?? "";
 const contactVersion = (d: ContactSource) => d._meta?.updatedAt ?? "";
 
+/**
+ * A document saved before the bundles moved out of code has no bundles key.
+ *
+ * It must NOT default to an empty list: the quick bundles would vanish from the
+ * booking page and every item they sell would become deletable, silently, the
+ * moment this shipped. So an ABSENT key falls back to the seed.
+ *
+ * An empty ARRAY is left alone, because that is a deliberate "I deleted them
+ * all" — and `[]` is truthy, so the check below distinguishes the two.
+ */
+function withBundles(d: EquipmentSource): EquipmentSource {
+  return d.bundles ? d : { ...d, bundles: [...SEED_BUNDLES] };
+}
+
 export async function readEquipment(): Promise<Versioned<EquipmentSource>> {
   if (isConfigured()) {
     const stored = await readJson<EquipmentSource>(EQUIPMENT_KEY, equipmentVersion);
-    if (stored) return { ...stored, seeded: false };
+    if (stored) return { ...stored, data: withBundles(stored.data), seeded: false };
   }
   // Nothing saved yet, or no store: serve what ships with the site rather than
   // an empty catalogue.
   return {
-    data: { _meta: seedMeta(SEED_ROWS.length), rows: [...SEED_ROWS] },
+    data: {
+      _meta: seedMeta(SEED_ROWS.length),
+      rows: [...SEED_ROWS],
+      bundles: [...SEED_BUNDLES],
+    },
     version: "",
     seeded: true,
   };
@@ -204,6 +222,7 @@ function seedMeta(rowCount: number): EquipmentSource["_meta"] {
     rowCount,
     vatIncluded: false,
     photoCount: 0,
+    bundleCount: SEED_BUNDLES.length,
   };
 }
 

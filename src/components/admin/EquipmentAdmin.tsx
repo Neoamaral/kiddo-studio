@@ -12,9 +12,10 @@
  * for why that order is not arbitrary.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import type { EquipmentSourceRow, Rate } from "@/data/types";
-import { Banner, Button, Label, field, mono } from "./ui";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { EquipmentBundle, EquipmentSourceRow, Rate } from "@/data/types";
+import { codesUsedByBundles } from "@/lib/equipment-validate";
+import { Banner, Button, Label, box, field, mono } from "./ui";
 
 /** The gallery is designed for six. */
 const MAX_PHOTOS = 6;
@@ -23,19 +24,19 @@ const MAX_EDGE = 1600;
 
 interface Loaded {
   rows: EquipmentSourceRow[];
+  bundles: EquipmentBundle[];
   /** Sent back on save so two editors cannot silently overwrite each other. */
   version: string;
   /** Nothing saved yet — this is what shipped with the site. */
   seeded: boolean;
   readOnly: boolean;
-  lockedCodes: string[];
   categories: string[];
 }
 
 type Status =
   | { kind: "idle" }
   | { kind: "saving" }
-  | { kind: "saved" }
+  | { kind: "saved"; warnings: string[] }
   | { kind: "error"; message: string; details?: string[] };
 
 const blankRow = (): EquipmentSourceRow => ({
@@ -80,6 +81,7 @@ function resize(file: File): Promise<string> {
 export default function EquipmentAdmin() {
   const [data, setData] = useState<Loaded | null>(null);
   const [rows, setRows] = useState<EquipmentSourceRow[]>([]);
+  const [bundles, setBundles] = useState<EquipmentBundle[]>([]);
   const [open, setOpen] = useState<string | null>(null);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -96,6 +98,7 @@ export default function EquipmentAdmin() {
     const body = (await res.json()) as Loaded;
     setData(body);
     setRows(body.rows);
+    setBundles(body.bundles ?? []);
     setDirty(false);
   }, []);
 
@@ -112,11 +115,46 @@ export default function EquipmentAdmin() {
   }, [dirty]);
 
   const update = (i: number, patch: Partial<EquipmentSourceRow>) => {
-    setRows((prev) => prev.map((r, n) => (n === i ? { ...r, ...patch } : r)));
+    setRows((prev) => {
+      const before = prev[i];
+      const after = { ...before, ...patch };
+      /*
+       * Renaming an item's code rewrites it in every bundle that sells it.
+       *
+       * Without this, retyping CAM-01 as CAM-02 leaves the bundle pointing at
+       * a code that no longer exists, and the save is refused for a code the
+       * studio can see they just fixed. Same motive as parseRow uppercasing:
+       * keep coupled fields in step at the point of edit.
+       */
+      if (patch.code && patch.code !== before.code) {
+        const from = before.code;
+        const to = patch.code;
+        setBundles((bs) =>
+          bs.map((b) =>
+            b.memberCodes.includes(from)
+              ? { ...b, memberCodes: b.memberCodes.map((c) => (c === from ? to : c)) }
+              : b
+          )
+        );
+      }
+      return prev.map((r, n) => (n === i ? after : r));
+    });
     setDirty(true);
   };
 
-  const locked = new Set(data?.lockedCodes ?? []);
+  const updateBundle = (i: number, patch: Partial<EquipmentBundle>) => {
+    setBundles((prev) => prev.map((b, n) => (n === i ? { ...b, ...patch } : b)));
+    setDirty(true);
+  };
+
+  /*
+   * Derived from the bundles being EDITED, not sent by the server.
+   *
+   * A server-sent list would describe the stored document while the screen
+   * describes the proposed one — so the delete button would stay locked until
+   * a save, and the save that would unlock it is the one being blocked.
+   */
+  const locked = useMemo(() => codesUsedByBundles(bundles), [bundles]);
 
   async function save() {
     if (!data) return;
@@ -124,17 +162,21 @@ export default function EquipmentAdmin() {
     const res = await fetch("/api/admin/equipment", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ rows, version: data.version }),
+      body: JSON.stringify({ rows, bundles, version: data.version }),
     });
     const body = (await res.json().catch(() => ({}))) as {
       error?: string;
       errors?: string[];
+      warnings?: string[];
     };
     if (!res.ok) {
       setStatus({ kind: "error", message: body.error ?? "Save failed", details: body.errors });
       return;
     }
-    setStatus({ kind: "saved" });
+    // Warnings are things worth knowing that do not block — a bundle dearer
+    // than its parts, an item with no stock. They were computed and discarded
+    // before this; now they are shown.
+    setStatus({ kind: "saved", warnings: body.warnings ?? [] });
     setDirty(false);
     // Pick up the new version, or the next save conflicts with our own write.
     void load();
@@ -187,6 +229,17 @@ export default function EquipmentAdmin() {
         </Banner>
       )}
 
+      {status.kind === "saved" && status.warnings.length > 0 && (
+        <Banner tone="info">
+          <strong>Saved, but worth a look:</strong>
+          <ul style={{ margin: "8px 0 0 18px" }}>
+            {status.warnings.map((w) => (
+              <li key={w}>{w}</li>
+            ))}
+          </ul>
+        </Banner>
+      )}
+
       {status.kind === "error" && (
         <Banner tone="error">
           <strong>{status.message}</strong>
@@ -203,6 +256,70 @@ export default function EquipmentAdmin() {
       {dirty && status.kind !== "saving" && (
         <Banner tone="info">Unsaved changes.</Banner>
       )}
+
+      {/*
+        Above the item list, not below it: the list is twenty-two accordions and
+        anything after it is effectively invisible — and the locked items down
+        there point UP to here, so reading order matches instruction order.
+      */}
+      <div style={box}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+          <h2 style={{ ...mono, fontSize: 11 }}>QUICK BUNDLES</h2>
+          <span style={{ ...mono, fontSize: 9, color: "rgba(0,0,0,0.4)" }}>
+            {bundles.length}
+          </span>
+          <div style={{ marginLeft: "auto" }}>
+            <Button
+              disabled={data.readOnly}
+              onClick={() => {
+                setBundles((b) => [
+                  ...b,
+                  { id: "", label: "", memberCodes: [],
+                    rate: { kind: "fixed", amount: 0, per: "day" } },
+                ]);
+                setDirty(true);
+              }}
+            >
+              + Add bundle
+            </Button>
+          </div>
+        </div>
+
+        <p
+          style={{
+            fontFamily: "var(--font-body)",
+            fontSize: 12,
+            color: "rgba(0,0,0,0.55)",
+            lineHeight: 1.6,
+            marginBottom: 14,
+          }}
+        >
+          Shown on the booking page above the item list. A bundle is a discount:
+          the client pays the bundle price instead of the items inside it, and
+          the items stop being chargeable separately.
+        </p>
+
+        {bundles.length === 0 && (
+          <p style={{ ...mono, fontSize: 9, color: "rgba(0,0,0,0.4)" }}>
+            None — the booking page shows no QUICK BUNDLES section at all.
+          </p>
+        )}
+
+        {bundles.map((b, i) => (
+          <BundleCard
+            key={`${b.id}-${i}`}
+            bundle={b}
+            index={i}
+            rows={rows}
+            readOnly={data.readOnly}
+            onChange={(patch) => updateBundle(i, patch)}
+            onDelete={() => {
+              setBundles((prev) => prev.filter((_, n) => n !== i));
+              setDirty(true);
+            }}
+          />
+        ))}
+      </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {rows.map((row, i) => (
@@ -576,13 +693,293 @@ function ItemCard({
               disabled={locked}
               title={
                 locked
-                  ? "A gear bundle sells this item. Remove it from the bundle first."
+                  ? "A quick bundle sells this item. Take it out of the bundle above first."
                   : "Delete this item"
               }
             >
               {locked ? "Locked — in a bundle" : "Delete item"}
             </Button>
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── One bundle ──────────────────────────────────────────────────────────── */
+
+/** "Camera bundle (FX6 + 3 lenses)" → "camera-bundle-fx6-3-lenses" */
+function slugify(label: string): string {
+  return label
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40);
+}
+
+function BundleCard({
+  bundle,
+  index,
+  rows,
+  readOnly,
+  onChange,
+  onDelete,
+}: {
+  bundle: EquipmentBundle;
+  index: number;
+  /** The rows being EDITED, so an item added in this session can be bundled. */
+  rows: EquipmentSourceRow[];
+  readOnly: boolean;
+  onChange: (patch: Partial<EquipmentBundle>) => void;
+  onDelete: () => void;
+}) {
+  const [picking, setPicking] = useState(false);
+  const [filter, setFilter] = useState("");
+
+  const byCode = useMemo(() => new Map(rows.map((r) => [r.code, r])), [rows]);
+
+  /** What the items come to individually — the discount the bundle represents. */
+  const partsSum = useMemo(() => {
+    let sum = 0;
+    for (const code of bundle.memberCodes) {
+      const r = byCode.get(code)?.rate;
+      // Unknown or on request: the comparison cannot be made honestly.
+      if (!r || r.kind === "onRequest") return null;
+      sum += r.kind === "free" ? 0 : r.amount;
+    }
+    return sum;
+  }, [bundle.memberCodes, byCode]);
+
+  const price = bundle.rate?.kind === "fixed" ? bundle.rate.amount : 0;
+  const saving = partsSum === null ? null : partsSum - price;
+
+  const groups = useMemo(() => {
+    const q = filter.trim().toLowerCase();
+    const out = new Map<string, EquipmentSourceRow[]>();
+    for (const r of rows) {
+      if (q && !`${r.code} ${r.name} ${r.category}`.toLowerCase().includes(q)) continue;
+      const list = out.get(r.category) ?? [];
+      list.push(r);
+      out.set(r.category, list);
+    }
+    return [...out.entries()];
+  }, [rows, filter]);
+
+  const toggle = (code: string) => {
+    const has = bundle.memberCodes.includes(code);
+    onChange({
+      memberCodes: has
+        ? bundle.memberCodes.filter((c) => c !== code)
+        : [...bundle.memberCodes, code],
+    });
+  };
+
+  return (
+    <div
+      style={{
+        border: "1px solid rgba(0,0,0,0.18)",
+        background: "#fff",
+        padding: 14,
+        marginBottom: 10,
+      }}
+    >
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "2fr 1fr",
+          gap: 12,
+          alignItems: "end",
+        }}
+      >
+        <div>
+          <Label>Name — what the client reads</Label>
+          <input
+            aria-label={`Name of bundle ${index + 1}`}
+            style={field}
+            value={bundle.label}
+            disabled={readOnly}
+            onChange={(e) => {
+              const label = e.target.value;
+              /*
+               * The id is minted once from the name and then frozen.
+               *
+               * It is a key, not a label: it travels in the booking payload and
+               * is recorded on the request. Changing it would make any /booking
+               * tab already open submit an id the server no longer knows, and
+               * be refused with "Unknown option".
+               */
+              onChange(bundle.id ? { label } : { label, id: slugify(label) });
+            }}
+          />
+        </div>
+        <div>
+          <Label>Price (€, excl. IVA)</Label>
+          <input
+            aria-label={`Price of bundle ${index + 1}`}
+            style={field}
+            type="number"
+            min={0}
+            step={1}
+            disabled={readOnly}
+            value={price}
+            onChange={(e) =>
+              onChange({
+                // Always a fixed day rate. "from" would be a lie — the quote
+                // charges a `from` amount exactly as it charges a fixed one.
+                rate: {
+                  kind: "fixed",
+                  amount: Math.round(Number(e.target.value)),
+                  per: "day",
+                },
+              })
+            }
+          />
+        </div>
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          gap: 12,
+          alignItems: "baseline",
+          flexWrap: "wrap",
+          marginTop: 8,
+        }}
+      >
+        <span style={{ ...mono, fontSize: 9, color: "rgba(0,0,0,0.4)" }}>
+          ID {bundle.id || "—"}
+        </span>
+        {partsSum !== null && bundle.memberCodes.length > 0 && (
+          <span
+            style={{
+              fontFamily: "var(--font-body)",
+              fontSize: 12,
+              color: saving !== null && saving < 0 ? "#B00020" : "rgba(0,0,0,0.55)",
+            }}
+          >
+            The items come to {partsSum}€ —{" "}
+            {saving === 0
+              ? "no discount"
+              : saving !== null && saving > 0
+                ? `a ${saving}€ discount`
+                : `this bundle is ${Math.abs(saving ?? 0)}€ DEARER than the parts`}
+          </span>
+        )}
+      </div>
+
+      <div style={{ marginTop: 12 }}>
+        <Label>Items in this bundle</Label>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {bundle.memberCodes.length === 0 && (
+            <span style={{ ...mono, fontSize: 9, color: "#B00020" }}>
+              Empty — a bundle that sells nothing cannot be saved
+            </span>
+          )}
+          {bundle.memberCodes.map((code) => {
+            const item = byCode.get(code);
+            return (
+              <button
+                key={code}
+                type="button"
+                disabled={readOnly}
+                onClick={() => toggle(code)}
+                title={item ? `Remove ${item.name}` : "This code is not in the catalogue"}
+                style={{
+                  ...mono,
+                  fontSize: 9,
+                  padding: "4px 8px",
+                  cursor: readOnly ? "not-allowed" : "pointer",
+                  border: item ? "1px solid rgba(0,0,0,0.3)" : "1px solid #B00020",
+                  color: item ? "#1A1A1A" : "#B00020",
+                  background: "transparent",
+                }}
+              >
+                {code}
+                {item ? "" : " — not in the catalogue"} ✕
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div style={{ marginTop: 12, display: "flex", gap: 8, alignItems: "center" }}>
+        <Button disabled={readOnly} onClick={() => setPicking((p) => !p)}>
+          {picking ? "Done choosing" : "Choose items"}
+        </Button>
+        <div style={{ marginLeft: "auto" }}>
+          <Button kind="danger" disabled={readOnly} onClick={onDelete}>
+            Delete bundle
+          </Button>
+        </div>
+      </div>
+
+      {picking && (
+        <div
+          style={{
+            marginTop: 10,
+            border: "1px solid rgba(0,0,0,0.15)",
+            padding: 10,
+            maxHeight: 320,
+            overflowY: "auto",
+          }}
+        >
+          <input
+            aria-label={`Search items for bundle ${index + 1}`}
+            style={{ ...field, marginBottom: 10 }}
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            placeholder="Filter by code, name or category"
+          />
+          {groups.length === 0 && (
+            <p style={{ ...mono, fontSize: 9, color: "rgba(0,0,0,0.4)" }}>Nothing matches</p>
+          )}
+          {groups.map(([category, items]) => (
+            <div key={category} style={{ marginBottom: 10 }}>
+              <div
+                style={{ ...mono, fontSize: 9, color: "rgba(0,0,0,0.4)", marginBottom: 4 }}
+              >
+                {category}
+              </div>
+              {items.map((r) => (
+                <label
+                  key={r.code}
+                  style={{
+                    display: "flex",
+                    gap: 8,
+                    alignItems: "center",
+                    padding: "3px 0",
+                    fontFamily: "var(--font-body)",
+                    fontSize: 13,
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={bundle.memberCodes.includes(r.code)}
+                    disabled={readOnly}
+                    onChange={() => toggle(r.code)}
+                  />
+                  <span style={{ ...mono, fontSize: 9, minWidth: 62 }}>{r.code}</span>
+                  <span>{r.name}</span>
+                  <span
+                    style={{
+                      marginLeft: "auto",
+                      ...mono,
+                      fontSize: 9,
+                      color: "rgba(0,0,0,0.5)",
+                    }}
+                  >
+                    {r.rate.kind === "fixed" || r.rate.kind === "from"
+                      ? `${r.rate.amount}€`
+                      : r.rate.kind === "free"
+                        ? "FREE"
+                        : "ON REQUEST"}
+                  </span>
+                </label>
+              ))}
+            </div>
+          ))}
         </div>
       )}
     </div>

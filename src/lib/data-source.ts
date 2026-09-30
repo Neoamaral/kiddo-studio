@@ -59,7 +59,11 @@ async function cached<T>(slot: Slot<T>, load: () => Promise<T>, fallback: T): Pr
 export async function getCatalogue(): Promise<CatalogueView> {
   return cached(
     catalogueSlot,
-    async () => deriveCatalogue((await readEquipment()).data.rows),
+    async () => {
+      const { data } = await readEquipment();
+      // Both, not just rows: readEquipment guarantees bundles is filled.
+      return deriveCatalogue(data.rows, data.bundles ?? []);
+    },
     SEED_CATALOGUE
   );
 }

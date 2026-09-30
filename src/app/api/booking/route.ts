@@ -73,6 +73,7 @@ export async function POST(req: NextRequest) {
     }, {
       packages: pricing.packages,
       items: catalogue.allItems,
+      bundles: catalogue.bundles,
       vatRate: pricing.vatRate,
       weekendMultiplier: pricing.weekendMultiplier,
     });

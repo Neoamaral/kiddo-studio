@@ -13,7 +13,7 @@
 
 import { kiddoColors } from "@/components/kiddo-assets";
 import { ItemPrice } from "@/components/equipment/ledgerBits";
-import { EQUIPMENT_BUNDLES, bundleAmount, itemByCode } from "@/data/equipment";
+import { bundleAmount, itemByCode } from "@/data/equipment";
 import type { CatalogueView } from "@/data/equipment";
 import { eur } from "@/lib/money";
 
@@ -25,7 +25,11 @@ const monoXs: React.CSSProperties = {
 };
 
 export interface EquipmentPickerProps {
-  /** The live catalogue, from the page. Editable, so never imported here. */
+  /**
+   * The live catalogue, from the page. Editable, so never imported here — and
+   * that now includes the quick bundles, which used to be imported and so were
+   * baked into the browser bundle at build time.
+   */
   catalogue: CatalogueView;
   /** code -> quantity */
   value: Record<string, number>;
@@ -50,7 +54,7 @@ export default function EquipmentPicker({
   // so nobody adds a body that the bundle already contains.
   const covered = new Set<string>();
   for (const id of bundleIds) {
-    const b = EQUIPMENT_BUNDLES.find((x) => x.id === id);
+    const b = catalogue.bundles.find((x) => x.id === id);
     b?.memberCodes.forEach((c) => covered.add(c));
   }
 
@@ -68,7 +72,7 @@ export default function EquipmentPicker({
     }
     // Adding a bundle drops any hand-picked copies of its members, so the
     // client is never charged for the same body twice.
-    const bundle = EQUIPMENT_BUNDLES.find((x) => x.id === id);
+    const bundle = catalogue.bundles.find((x) => x.id === id);
     if (bundle) {
       const next = { ...value };
       for (const c of bundle.memberCodes) delete next[c];
@@ -79,7 +83,13 @@ export default function EquipmentPicker({
 
   return (
     <div>
-      {/* Bundle presets */}
+      {/*
+        Bundle presets. Hidden entirely when there are none — the heading used
+        to be unconditional, which was harmless while the list was a constant
+        and would now leave an orphan "QUICK BUNDLES" label above nothing the
+        moment the studio deleted the last one.
+      */}
+      {catalogue.bundles.length > 0 && (
       <div style={{ marginBottom: 24 }}>
         <div style={{ ...monoXs, color: "rgba(0,0,0,0.4)", marginBottom: 10 }}>
           QUICK BUNDLES
@@ -91,7 +101,7 @@ export default function EquipmentPicker({
             gap: 10,
           }}
         >
-          {EQUIPMENT_BUNDLES.map((b) => {
+          {catalogue.bundles.map((b) => {
             const on = bundleIds.includes(b.id);
             const amount = bundleAmount(b, catalogue.allItems);
             const members = b.memberCodes
@@ -133,6 +143,7 @@ export default function EquipmentPicker({
           })}
         </div>
       </div>
+      )}
 
       {/* Catalogue by category */}
       {catalogue.categories.map((cat) => (

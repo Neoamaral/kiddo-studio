@@ -74,7 +74,7 @@ period each row carries.
   prefix.
 - **Studio tiers are out of scope.** The 40/140/280/700 rates in
   `src/data/pricing.ts` are hand-authored and must not be touched by a sync.
-- **Bundles.** `EQUIPMENT_BUNDLES` references item codes. If the sync removes
+- **Bundles.** `the `bundles` key in equipment.source.json (and the panel)` references item codes. If the sync removes
   the FX6 or an Aputure, `validate-equipment.ts` fails — fix the bundle rather
   than shipping an add-on that sells gear the studio no longer has.
 - **VAT.** If the sheet quotes ex-VAT, set `_meta.vatIncluded: false` and raise

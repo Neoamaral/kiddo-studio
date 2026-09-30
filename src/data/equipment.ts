@@ -107,7 +107,7 @@ function buildCatalogue(rows: readonly EquipmentSourceRow[]): EquipmentCategory[
   });
 }
 
-/** Everything the equipment pages render, derived from one set of rows. */
+/** Everything the equipment pages render, derived from one document. */
 export interface CatalogueView {
   categories: readonly EquipmentCategory[];
   allItems: readonly EquipmentItem[];
@@ -119,12 +119,29 @@ export interface CatalogueView {
   strapline: string;
   /** Hero pull-out bar, e.g. [{ label: "CAMERAS", value: "5 bodies" }, …]. */
   summary: readonly { label: string; value: string }[];
+  /**
+   * The quick bundles, carried here so a client component never has to import
+   * them. They are editable, so an import would bake the build's copy into the
+   * browser bundle and the studio's edits would never show.
+   */
+  bundles: readonly EquipmentBundle[];
 }
 
-export function deriveCatalogue(rows: readonly EquipmentSourceRow[]): CatalogueView {
+/**
+ * Both arguments, no defaults.
+ *
+ * A default for `bundles` would let a caller that forgot quietly serve the
+ * build's copy — the same trap QuoteData spells out. Making it required is what
+ * makes the compiler name every call site.
+ */
+export function deriveCatalogue(
+  rows: readonly EquipmentSourceRow[],
+  bundles: readonly EquipmentBundle[]
+): CatalogueView {
   const categories = buildCatalogue(rows);
   const allItems = categories.flatMap((c) => c.items);
   return {
+    bundles,
     categories,
     allItems,
     totalItems: allItems.length,
@@ -141,8 +158,13 @@ export function deriveCatalogue(rows: readonly EquipmentSourceRow[]): CatalogueV
 /** The rows shipped in the repository. The seed, and the fallback. */
 export const SEED_ROWS: readonly EquipmentSourceRow[] = (source as EquipmentSource).rows;
 
+/** The bundles shipped in the repository. Also the fallback for a document
+ *  written before bundles moved out of code — see readEquipment(). */
+export const SEED_BUNDLES: readonly EquipmentBundle[] =
+  (source as EquipmentSource).bundles ?? [];
+
 /** The seed, derived. Used by scripts and as the fallback view. */
-export const SEED_CATALOGUE: CatalogueView = deriveCatalogue(SEED_ROWS);
+export const SEED_CATALOGUE: CatalogueView = deriveCatalogue(SEED_ROWS, SEED_BUNDLES);
 
 export type FilterTab = string;
 
@@ -163,26 +185,6 @@ export function itemDescription(item: EquipmentItem): string {
   return item.description?.trim() || item.spec;
 }
 
-/**
- * Gear bundles sold as booking/pricing add-ons. Members are catalogue codes, so
- * a sync that drops an item fails validation instead of shipping an add-on that
- * sells gear the studio no longer has. See scripts/validate-equipment.ts.
- */
-export const EQUIPMENT_BUNDLES: readonly EquipmentBundle[] = [
-  {
-    id: "cam",
-    label: "Camera bundle (FX6 + 3 lenses)",
-    memberCodes: ["CAM-01", "LNS-01", "LNS-02", "LNS-03"],
-    rate: { kind: "fixed", amount: 240, per: "day" },
-  },
-  {
-    id: "light",
-    label: "Lighting bundle (3× Aputure)",
-    memberCodes: ["LIT-01", "LIT-02", "LIT-04"],
-    rate: { kind: "fixed", amount: 180, per: "day" },
-  },
-];
-
 /** Explicit bundle price, or the sum of its members' day rates. */
 export function bundleAmount(
   bundle: EquipmentBundle,
@@ -198,6 +200,3 @@ export function bundleAmount(
   return sum;
 }
 
-export function bundleById(id: string): EquipmentBundle | undefined {
-  return EQUIPMENT_BUNDLES.find((b) => b.id === id);
-}
