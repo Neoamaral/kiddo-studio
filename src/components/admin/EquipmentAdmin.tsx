@@ -83,6 +83,15 @@ export default function EquipmentAdmin() {
   const [rows, setRows] = useState<EquipmentSourceRow[]>([]);
   const [bundles, setBundles] = useState<EquipmentBundle[]>([]);
   const [open, setOpen] = useState<string | null>(null);
+  /*
+   * A sub-tab, deliberately — not a second page in the sidebar.
+   *
+   * Items and bundles are ONE document and ONE save: a bundle names catalogue
+   * codes, so taking an item out of a bundle and deleting that item has to be
+   * a single write or the two disagree in between. Two pages would mean two
+   * saves and a version conflict between them; a tab here is only a view.
+   */
+  const [tab, setTab] = useState<"items" | "bundles">("items");
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   const [loadError, setLoadError] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
@@ -199,17 +208,55 @@ export default function EquipmentAdmin() {
         <h1 style={{ fontFamily: "var(--font-display)", fontSize: 30, textTransform: "uppercase" }}>
           Equipment
         </h1>
-        <span style={{ ...mono, color: "rgba(0,0,0,0.5)" }}>{rows.length} items</span>
+        <div style={{ display: "flex", gap: 4 }}>
+          {([
+            ["items", `ITEMS ${rows.length}`],
+            ["bundles", `BUNDLES ${bundles.length}`],
+          ] as const).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setTab(id)}
+              style={{
+                ...mono,
+                fontSize: 10,
+                padding: "6px 12px",
+                cursor: "pointer",
+                background: tab === id ? "#C8E820" : "transparent",
+                border: tab === id ? "1px solid #1A1A1A" : "1px solid rgba(0,0,0,0.2)",
+                color: "#1A1A1A",
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
         <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
-          <Button
-            onClick={() => {
-              setRows((r) => [blankRow(), ...r]);
-              setOpen("");
-              setDirty(true);
-            }}
-          >
-            + Add item
-          </Button>
+          {tab === "items" ? (
+            <Button
+              onClick={() => {
+                setRows((r) => [blankRow(), ...r]);
+                setOpen("");
+                setDirty(true);
+              }}
+            >
+              + Add item
+            </Button>
+          ) : (
+            <Button
+              disabled={data.readOnly}
+              onClick={() => {
+                setBundles((b) => [
+                  ...b,
+                  { id: "", label: "", memberCodes: [],
+                    rate: { kind: "fixed", amount: 0, per: "day" } },
+                ]);
+                setDirty(true);
+              }}
+            >
+              + Add bundle
+            </Button>
+          )}
           <Button kind="primary" onClick={save} disabled={data.readOnly || !dirty || status.kind === "saving"}>
             {status.kind === "saving" ? "Saving…" : "Save & publish"}
           </Button>
@@ -257,34 +304,8 @@ export default function EquipmentAdmin() {
         <Banner tone="info">Unsaved changes.</Banner>
       )}
 
-      {/*
-        Above the item list, not below it: the list is twenty-two accordions and
-        anything after it is effectively invisible — and the locked items down
-        there point UP to here, so reading order matches instruction order.
-      */}
+      {tab === "bundles" && (
       <div style={box}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-          <h2 style={{ ...mono, fontSize: 11 }}>QUICK BUNDLES</h2>
-          <span style={{ ...mono, fontSize: 9, color: "rgba(0,0,0,0.4)" }}>
-            {bundles.length}
-          </span>
-          <div style={{ marginLeft: "auto" }}>
-            <Button
-              disabled={data.readOnly}
-              onClick={() => {
-                setBundles((b) => [
-                  ...b,
-                  { id: "", label: "", memberCodes: [],
-                    rate: { kind: "fixed", amount: 0, per: "day" } },
-                ]);
-                setDirty(true);
-              }}
-            >
-              + Add bundle
-            </Button>
-          </div>
-        </div>
-
         <p
           style={{
             fontFamily: "var(--font-body)",
@@ -296,7 +317,11 @@ export default function EquipmentAdmin() {
         >
           Shown on the booking page above the item list. A bundle is a discount:
           the client pays the bundle price instead of the items inside it, and
-          the items stop being chargeable separately.
+          the items stop being chargeable separately.{" "}
+          <strong>
+            Both tabs save together
+          </strong>{" "}
+          — so you can take an item out of a bundle and delete it in one go.
         </p>
 
         {bundles.length === 0 && (
@@ -320,7 +345,9 @@ export default function EquipmentAdmin() {
           />
         ))}
       </div>
+      )}
 
+      {tab === "items" && (
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {rows.map((row, i) => (
           <ItemCard
@@ -340,6 +367,7 @@ export default function EquipmentAdmin() {
           />
         ))}
       </div>
+      )}
     </>
   );
 }
@@ -693,7 +721,7 @@ function ItemCard({
               disabled={locked}
               title={
                 locked
-                  ? "A quick bundle sells this item. Take it out of the bundle above first."
+                  ? "A quick bundle sells this item. Take it out of the bundle first — see the BUNDLES tab."
                   : "Delete this item"
               }
             >
