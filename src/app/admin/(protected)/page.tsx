@@ -3,6 +3,7 @@ import { getCatalogue, getContact, getPricing } from "@/lib/data-source";
 import { isDbConfigured } from "@/lib/db/client";
 import { listBoard } from "@/lib/db/requests";
 import { listDeadLetters } from "@/lib/deadletter";
+import { loadCatalogue } from "@/lib/admin/catalogue";
 import { todayInLisbon } from "@/lib/date";
 
 export const dynamic = "force-dynamic";
@@ -66,6 +67,19 @@ export default async function AdminHome() {
     }
   }
 
+  /*
+   * getCatalogue() swallows a store failure and serves the seed, which is right
+   * for a visitor and wrong for this page: the studio would see their own
+   * catalogue on screen and never learn the site was serving the shipped one
+   * instead. loadCatalogue does not swallow.
+   */
+  let storeError: string | null = null;
+  try {
+    await loadCatalogue();
+  } catch (err) {
+    storeError = err instanceof Error ? err.message : "The storage could not be read.";
+  }
+
   let deadLetters: { pathname: string }[] = [];
   try {
     deadLetters = await listDeadLetters();
@@ -121,6 +135,25 @@ export default async function AdminHome() {
         >
           The database did not answer just now. Bookings taken while it is down
           are kept in the recovery store and can be replayed — nothing is lost.
+        </div>
+      )}
+
+      {storeError && (
+        <div
+          role="alert"
+          style={{
+            background: "#FDECEF",
+            border: "1px solid #B00020",
+            color: "#7A0016",
+            padding: "12px 14px",
+            marginBottom: 16,
+            fontFamily: "var(--font-body)",
+            fontSize: 13,
+            lineHeight: 1.6,
+          }}
+        >
+          <strong>The site is showing the catalogue that shipped with it, not yours.</strong>{" "}
+          {storeError}
         </div>
       )}
 

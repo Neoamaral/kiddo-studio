@@ -167,6 +167,42 @@ export default function EquipmentAdmin() {
 
   async function save() {
     if (!data) return;
+
+    /*
+     * A save that REMOVES things asks first.
+     *
+     * Deleting is one click per item and there is no undo beyond the dated
+     * snapshots, so a slip — or a stray script — can empty the catalogue a
+     * click at a time with nothing on screen saying how much is about to go.
+     * That happened during development: twelve items and both bundles were
+     * gone before anyone noticed, and only the snapshots got them back.
+     *
+     * Only ever asks about REMOVALS. Editing and adding stay one click.
+     */
+    const goneRows = data.rows.filter((r) => !rows.some((x) => x.code === r.code));
+    const goneBundles = (data.bundles ?? []).filter(
+      (b) => !bundles.some((x) => x.id === b.id)
+    );
+    if (goneRows.length || goneBundles.length) {
+      const what = [
+        goneRows.length
+          ? `${goneRows.length} item${goneRows.length === 1 ? "" : "s"} (${goneRows
+              .map((r) => r.code)
+              .join(", ")})`
+          : "",
+        goneBundles.length
+          ? `${goneBundles.length} bundle${goneBundles.length === 1 ? "" : "s"} (${goneBundles
+              .map((b) => b.label || b.id)
+              .join(", ")})`
+          : "",
+      ]
+        .filter(Boolean)
+        .join(" and ");
+      if (!window.confirm(`This save removes ${what}.
+
+Publish anyway?`)) return;
+    }
+
     setStatus({ kind: "saving" });
     const res = await fetch("/api/admin/equipment", {
       method: "PUT",

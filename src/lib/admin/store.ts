@@ -92,6 +92,27 @@ async function fetchJson<T>(url: string, key: string): Promise<T | null> {
   unstable_noStore();
   const res = await fetch(url, { cache: "no-store", next: { revalidate: 0 } });
   if (res.status === 404) return null; // the index is ahead of the content
+
+  /*
+   * A suspended store answers 403 to every content read while still listing
+   * normally — so the failure looks like a permissions bug and reads, in the
+   * panel, as "Could not read data/equipment.json (403)". That tells the studio
+   * nothing about what happened, whether anything is lost, or what to do.
+   *
+   * It is worth naming because it is recoverable and nothing is gone: the
+   * blobs are intact and readable again the moment billing is reactivated.
+   */
+  if (res.status === 403) {
+    throw new StoreError(
+      "The storage for equipment, pricing and contact details is suspended, " +
+        "so it cannot be read or saved right now. Nothing is lost — the data " +
+        "is still there and comes back when the Blob store is reactivated in " +
+        "the Vercel dashboard. Bookings, the calendar and clients are " +
+        "unaffected; they live in the database.",
+      503
+    );
+  }
+
   if (!res.ok) throw new StoreError(`Could not read ${key} (${res.status})`, 502);
   try {
     return JSON.parse(await res.text()) as T;
