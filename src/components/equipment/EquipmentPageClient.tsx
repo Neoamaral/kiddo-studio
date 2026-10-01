@@ -667,6 +667,11 @@ function EqInventory({
 
 /* ─── Section 4: EqCantFindIt ───────────────────────────────────────────── */
 
+/**
+ * NOT RENDERED. Hidden at the studio's request — see the commented-out call in
+ * EquipmentPageClient below. Kept whole so it can come back in one line.
+ */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function EqCantFindIt() {
   return (
     <section
@@ -844,7 +849,17 @@ export default function EquipmentPageClient({ catalogue }: { catalogue: Catalogu
           onOpen={setOpenItem}
         />
       </div>
-      <EqCantFindIt />
+      {/*
+        CAN'T FIND IT? / WE'LL SOURCE IT — hidden at the studio's request, not
+        retired. The section below is intact: put this line back as
+        <EqCantFindIt /> and it returns exactly as it was.
+
+        It is hidden rather than deleted because nothing about it is wrong — the
+        studio is simply not offering custom sourcing at the moment. Its claims
+        are promises to clients ("3-5 DAYS", "TRUSTED LOCAL & INT'L SUPPLIERS"),
+        so if it comes back, check those still hold before showing them again.
+      */}
+      {/* <EqCantFindIt /> */}
       <EquipmentDetailModal item={openItem} onClose={() => setOpenItem(null)} />
     </main>
   );
