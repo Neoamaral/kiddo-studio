@@ -1,9 +1,15 @@
 /**
- * What a Base Hire actually gets you, as photographs.
+ * What each package actually gets you, as photographs.
  *
- * The rate card lists four lines of text. This is those four things with the
- * room's own photos against them, which is the difference between reading
- * "heavy grip package" and seeing the castors.
+ * The rate card lists four lines of text per ticket. These are those lines
+ * with the room's own photos against them, which is the difference between
+ * reading "heavy grip package" and seeing the castors.
+ *
+ * Full House is Base Hire plus one chapter. That is not a layout convenience,
+ * it is what the card says — "Everything in Base Hire" — and the photographs
+ * agree: 25 of the 32 shots for Full House are byte-for-byte the same files,
+ * so this file reuses them rather than shipping a second copy of the same
+ * garment rail.
  *
  * Nothing here is eyeballed:
  *   - the backdrop names are measured. Each paper was sampled against the
@@ -12,11 +18,16 @@
  *     blue-grey (red/blue 0.86), not an underexposed white.
  *   - each wash colour carries the hue measured off the wall in that frame,
  *     so a label cannot drift from the photo it sits under.
- *   - no counts are claimed. The rate card says "3x Amaran Pano 120s"; this
- *     file describes what is in frame and leaves the counting to the card.
+ *   - the model names are read off the bodies in the photographs, not off the
+ *     rate card. Where the two disagree the photograph wins here and the
+ *     disagreement is flagged rather than quietly reconciled: the card says
+ *     "Amaran 200 Bi" and the light in frame is an amaran 200x S, which is a
+ *     different model (daylight point source, not bi-colour).
+ *   - no counts are claimed. The card does the counting.
  *
- * The photos are in public/images/base-hire/, resized to the width each one is
- * drawn at. Nothing downloads a 4000px original to render it 500px wide.
+ * Photos live in public/images/base-hire/ and public/images/full-house/,
+ * resized to the width each one is drawn at. Nothing downloads a 4000px
+ * original to render it 500px wide.
  */
 
 export interface TourPhoto {
@@ -31,8 +42,11 @@ export interface TourPhoto {
 }
 
 export interface TourChapter {
-  /** "01", "02"... rendered as the chapter number. */
-  n: string;
+  /*
+   * No chapter number here on purpose. It is the position in the tour, and
+   * Full House inserts a chapter in front of Base Hire's — written by hand,
+   * the two tours would disagree the moment one of them changed.
+   */
   id: string;
   /** Short label for the jump nav. */
   nav: string;
@@ -48,10 +62,11 @@ export interface TourChapter {
 }
 
 const B = "/images/base-hire/";
+const F = "/images/full-house/";
 
-export const BASE_HIRE_TOUR: readonly TourChapter[] = [
+/** The room itself. Base Hire IS this; Full House is this plus the key light. */
+const ROOM: readonly TourChapter[] = [
   {
-    n: "01",
     id: "backdrops",
     nav: "BACKDROPS",
     title: "THE BACKDROPS",
@@ -93,7 +108,6 @@ export const BASE_HIRE_TOUR: readonly TourChapter[] = [
     ],
   },
   {
-    n: "02",
     id: "light",
     nav: "THE LIGHT",
     title: "THE LIGHT",
@@ -183,7 +197,6 @@ export const BASE_HIRE_TOUR: readonly TourChapter[] = [
     ],
   },
   {
-    n: "03",
     id: "grip",
     nav: "GRIP",
     title: "GRIP & STANDS",
@@ -245,7 +258,6 @@ export const BASE_HIRE_TOUR: readonly TourChapter[] = [
     ],
   },
   {
-    n: "04",
     id: "floor",
     nav: "ON THE FLOOR",
     title: "ON THE FLOOR",
@@ -285,11 +297,91 @@ export const BASE_HIRE_TOUR: readonly TourChapter[] = [
 ];
 
 /**
- * How many photographs the tour holds. Counted from the data, never typed by
- * hand: the button on the rate card prints this number, and a number typed in
- * two places is a number that goes wrong in one of them.
+ * The chapter that Full House adds. The ticket's own selling point, so it
+ * leads rather than sitting third behind two chapters the cheaper package
+ * already includes.
+ *
+ * The body in every frame reads STORM 400x. The rate card says "Aputure Storm
+ * 400"; same light, and the card is the one that sets the wording for the
+ * ticket, so nothing is corrected here — only photographed.
  */
-export const BASE_HIRE_PHOTO_COUNT = BASE_HIRE_TOUR.reduce(
-  (n, c) => n + c.photos.length + (c.strip?.length ?? 0) + (c.details?.length ?? 0),
-  0
-);
+const KEY_LIGHT: TourChapter = {
+  id: "key",
+  nav: "KEY LIGHT",
+  title: "THE KEY LIGHT",
+  blurb:
+    "An Aputure Storm 400x on a rolling stand, with its battery and controller on the column so it can be moved without unplugging anything. Six ways to shape it, swapped on the Bowens mount in a minute.",
+  photos: [
+    {
+      src: F + "storm-reflector.jpg",
+      caption: "REFLECTOR",
+      alt: "The Aputure Storm 400x on a rolling stand with its standard silver reflector dish.",
+      width: 1000,
+      height: 1500,
+    },
+    {
+      src: F + "storm-snoot.jpg",
+      caption: "SNOOT",
+      alt: "The Storm 400x fitted with a black conical snoot for a narrow beam.",
+      width: 1000,
+      height: 1500,
+    },
+    {
+      src: F + "storm-lantern.jpg",
+      caption: "LANTERN",
+      alt: "The Storm 400x inside a white spherical lantern softbox, throwing light in every direction.",
+      width: 1000,
+      height: 1500,
+    },
+    {
+      src: F + "storm-parabolic.jpg",
+      caption: "PARABOLIC + GRID",
+      alt: "The Storm 400x in a deep black parabolic softbox fitted with an egg-crate grid.",
+      width: 1000,
+      height: 1500,
+    },
+    {
+      src: F + "storm-strip.jpg",
+      caption: "STRIP 30×120 + GRID",
+      alt: "The Storm 400x in a Zarion SB-30120F strip softbox with an egg-crate grid.",
+      width: 1000,
+      height: 1500,
+    },
+    {
+      src: F + "storm-octa.jpg",
+      caption: "OCTABOX",
+      alt: "The Storm 400x in a silver-lined octagonal softbox.",
+      width: 1000,
+      height: 1500,
+    },
+  ],
+  detailsNote:
+    "And the second head, for fill and hair. The body reads amaran 200x S — the rate card calls it a 200 Bi.",
+  details: [
+    {
+      src: F + "amaran-200x.jpg",
+      caption: "AMARAN 200X S",
+      alt: "An amaran 200x S point-source light on a rolling stand, with no modifier fitted.",
+      width: 1000,
+      height: 1500,
+    },
+  ],
+};
+
+/** Base Hire: the room, nothing added. */
+export const BASE_HIRE_TOUR: readonly TourChapter[] = ROOM;
+
+/** Full House: the key light first, then the same room. */
+export const FULL_HOUSE_TOUR: readonly TourChapter[] = [KEY_LIGHT, ...ROOM];
+
+/**
+ * How many photographs a tour holds. Counted, never typed: the button on each
+ * rate card prints this number, and a number written in two places is a number
+ * that goes wrong in one of them.
+ */
+export function photoCount(tour: readonly TourChapter[]): number {
+  return tour.reduce(
+    (n, c) => n + c.photos.length + (c.strip?.length ?? 0) + (c.details?.length ?? 0),
+    0
+  );
+}

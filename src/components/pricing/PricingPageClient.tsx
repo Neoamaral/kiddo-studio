@@ -11,10 +11,11 @@ import {
 } from "@/components/kiddo-assets";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import type { PricingView } from "@/data/pricing";
+import type { PackageId } from "@/data/types";
 import { entryPrice } from "@/data/pricing";
 import { TICKET_THEMES } from "./ticketTheme";
-import BaseHireTourModal from "./BaseHireTourModal";
-import { BASE_HIRE_PHOTO_COUNT } from "./baseHireTour";
+import PackageTourModal from "./PackageTourModal";
+import { BASE_HIRE_TOUR, FULL_HOUSE_TOUR, photoCount } from "./packageTours";
 import { formatRate } from "@/lib/money";
 
 
@@ -26,9 +27,9 @@ const monoXs: React.CSSProperties = {
 };
 
 export default function PricingPageClient({ pricing }: { pricing: PricingView }) {
-  // The Base Hire photo tour. One flag for the page, not one per ticket:
-  // only the Base Hire ticket opens it, and the photos are its kit.
-  const [tourOpen, setTourOpen] = useState(false);
+  // Which ticket has its photo tour open, if any. One slot for the page: two
+  // tours cannot be open at once, and a boolean per ticket would let them.
+  const [tour, setTour] = useState<PackageId | null>(null);
   // Everything below used to be read from module-level constants. It now
   // arrives as a prop, because the rate card is editable and a build-time
   // import would show whatever was true when the site was last deployed.
@@ -410,15 +411,14 @@ export default function PricingPageClient({ pricing }: { pricing: PricingView })
                     ))}
                   </ul>
                   {/*
-                    Base Hire only. The photographs ARE the Base Hire kit, and
-                    the Full Day ticket reads "Everything in Base Hire" plus
-                    more — showing this tour there would be half the answer
-                    dressed as the whole one.
+                    Both tickets now. Full House is Base Hire plus the key
+                    light, and its tour says so: the same chapters with one
+                    more in front, so nothing claims the cheaper package has
+                    gear it does not.
                   */}
-                  {t.id === "base" && (
-                    <button
+                  <button
                       type="button"
-                      onClick={() => setTourOpen(true)}
+                      onClick={() => setTour(t.id)}
                       style={{
                         ...monoXs,
                         alignSelf: "flex-start",
@@ -435,7 +435,8 @@ export default function PricingPageClient({ pricing }: { pricing: PricingView })
                     >
                       SEE THE EQUIPMENT
                       <span style={{ opacity: 0.5 }}>
-                        {BASE_HIRE_PHOTO_COUNT} PHOTOS
+                        {photoCount(t.id === "base" ? BASE_HIRE_TOUR : FULL_HOUSE_TOUR)}{" "}
+                        PHOTOS
                       </span>
                       <ScribbleArrowIcon
                         variant="right"
@@ -444,30 +445,6 @@ export default function PricingPageClient({ pricing }: { pricing: PricingView })
                         color={theme.text}
                       />
                     </button>
-                  )}
-                  {/*
-                    The Adobe gallery, for the tickets that have no tour of
-                    their own. Base Hire dropped it when SEE THE EQUIPMENT
-                    started showing the same kit without leaving the site;
-                    Full Day still links out, because its extra gear is not
-                    photographed here yet.
-                  */}
-                  {t.id !== "base" && (
-                    <a
-                      href={t.equipmentListUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{
-                        ...monoXs,
-                        color: theme.text,
-                        textDecoration: "underline",
-                        textUnderlineOffset: 4,
-                        alignSelf: "flex-start",
-                      }}
-                    >
-                      SEE EQUIPMENT LIST →
-                    </a>
-                  )}
                   <a
                     href="/booking"
                     style={{
@@ -984,12 +961,35 @@ export default function PricingPageClient({ pricing }: { pricing: PricingView })
       </section>
 
       {/*
-        Mounted once, at the end of the page rather than inside the ticket.
+        One modal for the page, mounted at the end rather than inside a ticket.
         <Modal> portals to document.body and renders nothing while closed, so
         where it sits in this tree costs nothing — but keeping it out of the
         ticket keeps the ticket's own markup readable.
+
+        The price line is built from the SAME numbers the ticket prints, the
+        weekend multiplier included. Hard-coding "180€" here would start lying
+        the first time the studio edits a rate in the panel, or the moment a
+        visitor flicks the weekend toggle.
       */}
-      <BaseHireTourModal open={tourOpen} onClose={() => setTourOpen(false)} />
+      {(() => {
+        const t = PACKAGES.find((p) => p.id === tour);
+        if (!t) return null;
+        const fd = Math.round(t.rates.fd * mult);
+        const hd = Math.round(t.rates.hd * mult);
+        return (
+          <PackageTourModal
+            open
+            onClose={() => setTour(null)}
+            chapters={t.id === "base" ? BASE_HIRE_TOUR : FULL_HOUSE_TOUR}
+            copy={{
+              kicker: `${t.name} · ${t.tag}`,
+              title: "WHAT'S IN THE ROOM",
+              priceLine: `${fd}€ FULL DAY · ${hd}€ HALF · + IVA`,
+              ctaLabel: t.cta,
+            }}
+          />
+        );
+      })()}
     </>
   );
 }

@@ -1,16 +1,17 @@
 "use client";
 
 /**
- * The Base Hire photo tour.
+ * A package photo tour. One component, both tickets.
  *
  * Composes the generic <Modal> shell, so it owns no portal, focus or scroll
  * machinery — only layout and copy. Same arrangement as EquipmentDetailModal.
  *
- * The chapters and every caption come from baseHireTour.ts. This file decides
+ * The chapters and every caption come from packageTours.ts. This file decides
  * how many columns each one gets, and it decides that from the photographs
  * themselves rather than from a hand-set number: landscape plates get two
  * columns, portrait ones get three. A photo swapped for a different crop
- * re-flows on its own.
+ * re-flows on its own. Chapter numbers come from the position in the tour for
+ * the same reason — Full House inserts a chapter in front of Base Hire's.
  */
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
@@ -18,8 +19,7 @@ import Image from "next/image";
 import Modal from "@/components/ui/Modal";
 import { ScribbleArrowIcon, kiddoColors } from "@/components/kiddo-assets";
 import { useIsMobile } from "@/hooks/useIsMobile";
-import { BASE_HIRE_TOUR } from "./baseHireTour";
-import type { TourChapter, TourPhoto } from "./baseHireTour";
+import type { TourChapter, TourPhoto } from "./packageTours";
 
 const mono: React.CSSProperties = {
   fontFamily: "var(--font-mono)",
@@ -91,10 +91,13 @@ function Frame({
 
 function Chapter({
   chapter,
+  n,
   isMobile,
   attach,
 }: {
   chapter: TourChapter;
+  /** "01", "02"… derived from the position, never stored on the chapter. */
+  n: string;
   isMobile: boolean;
   attach: (el: HTMLElement | null) => void;
 }) {
@@ -135,7 +138,7 @@ function Chapter({
             flexShrink: 0,
           }}
         >
-          {chapter.n}
+          {n}
         </span>
         <h3
           id={`tour-${chapter.id}`}
@@ -257,11 +260,30 @@ function Chapter({
   );
 }
 
-function TourContent({ titleId, onClose }: { titleId: string; onClose: () => void }) {
+interface TourCopy {
+  /** Small mono line above the title, e.g. "BASE HIRE · PACKAGE 1". */
+  kicker: string;
+  title: string;
+  /** The line beside the closing CTA, e.g. "180€ FULL DAY · 110€ HALF · + IVA". */
+  priceLine: string;
+  ctaLabel: string;
+}
+
+function TourContent({
+  titleId,
+  onClose,
+  chapters,
+  copy,
+}: {
+  titleId: string;
+  onClose: () => void;
+  chapters: readonly TourChapter[];
+  copy: TourCopy;
+}) {
   const isMobile = useIsMobile(768);
   const scrollRef = useRef<HTMLDivElement>(null);
   const sections = useRef<Record<string, HTMLElement | null>>({});
-  const [active, setActive] = useState(BASE_HIRE_TOUR[0].id);
+  const [active, setActive] = useState(chapters[0].id);
 
   const jump = useCallback((id: string) => {
     const el = sections.current[id];
@@ -300,7 +322,7 @@ function TourContent({ titleId, onClose }: { titleId: string; onClose: () => voi
     );
     els.forEach((el) => io.observe(el));
     return () => io.disconnect();
-  }, []);
+  }, [chapters]);
 
   return (
     <>
@@ -318,9 +340,7 @@ function TourContent({ titleId, onClose }: { titleId: string; onClose: () => voi
         }}
       >
         <div style={{ minWidth: 0 }}>
-          <span style={{ ...mono, color: "rgba(0,0,0,0.45)" }}>
-            BASE HIRE · PACKAGE 1
-          </span>
+          <span style={{ ...mono, color: "rgba(0,0,0,0.45)" }}>{copy.kicker}</span>
           <h2
             id={titleId}
             style={{
@@ -332,7 +352,7 @@ function TourContent({ titleId, onClose }: { titleId: string; onClose: () => voi
               color: kiddoColors.black,
             }}
           >
-            WHAT&apos;S IN THE ROOM
+            {copy.title}
           </h2>
         </div>
         <button
@@ -374,7 +394,7 @@ function TourContent({ titleId, onClose }: { titleId: string; onClose: () => voi
           flexShrink: 0,
         }}
       >
-        {BASE_HIRE_TOUR.map((c) => {
+        {chapters.map((c, i) => {
           const on = c.id === active;
           return (
             <button
@@ -394,7 +414,7 @@ function TourContent({ titleId, onClose }: { titleId: string; onClose: () => voi
                 color: on ? kiddoColors.lime : "rgba(0,0,0,0.55)",
               }}
             >
-              {c.n} {c.nav}
+              {String(i + 1).padStart(2, "0")} {c.nav}
             </button>
           );
         })}
@@ -412,10 +432,11 @@ function TourContent({ titleId, onClose }: { titleId: string; onClose: () => voi
           gap: 34,
         }}
       >
-        {BASE_HIRE_TOUR.map((c) => (
+        {chapters.map((c, i) => (
           <Chapter
             key={c.id}
             chapter={c}
+            n={String(i + 1).padStart(2, "0")}
             isMobile={isMobile}
             attach={(el) => {
               sections.current[c.id] = el;
@@ -450,11 +471,11 @@ function TourContent({ titleId, onClose }: { titleId: string; onClose: () => voi
               gap: 10,
             }}
           >
-            BOOK BASE HIRE
+            {copy.ctaLabel}
             <ScribbleArrowIcon variant="right" width={34} height={14} color={kiddoColors.black} />
           </a>
           <span style={{ ...mono, color: "rgba(0,0,0,0.45)", letterSpacing: "0.18em" }}>
-            180€ FULL DAY · 110€ HALF · + IVA
+            {copy.priceLine}
           </span>
         </div>
       </div>
@@ -462,12 +483,16 @@ function TourContent({ titleId, onClose }: { titleId: string; onClose: () => voi
   );
 }
 
-export default function BaseHireTourModal({
+export default function PackageTourModal({
   open,
   onClose,
+  chapters,
+  copy,
 }: {
   open: boolean;
   onClose: () => void;
+  chapters: readonly TourChapter[];
+  copy: TourCopy;
 }) {
   const titleId = useId();
   // Full screen on a phone. A centred card inside a 390px viewport spends its
@@ -482,7 +507,7 @@ export default function BaseHireTourModal({
       maxWidth={1180}
       fullBleed={isMobile}
     >
-      <TourContent titleId={titleId} onClose={onClose} />
+      <TourContent titleId={titleId} onClose={onClose} chapters={chapters} copy={copy} />
     </Modal>
   );
 }
