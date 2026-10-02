@@ -433,7 +433,7 @@ export default function PricingPageClient({ pricing }: { pricing: PricingView })
                         letterSpacing: "0.18em",
                       }}
                     >
-                      SEE THE ROOM
+                      SEE THE EQUIPMENT
                       <span style={{ opacity: 0.5 }}>
                         {BASE_HIRE_PHOTO_COUNT} PHOTOS
                       </span>
@@ -445,20 +445,29 @@ export default function PricingPageClient({ pricing }: { pricing: PricingView })
                       />
                     </button>
                   )}
-                  <a
-                    href={t.equipmentListUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      ...monoXs,
-                      color: theme.text,
-                      textDecoration: "underline",
-                      textUnderlineOffset: 4,
-                      alignSelf: "flex-start",
-                    }}
-                  >
-                    SEE EQUIPMENT LIST →
-                  </a>
+                  {/*
+                    The Adobe gallery, for the tickets that have no tour of
+                    their own. Base Hire dropped it when SEE THE EQUIPMENT
+                    started showing the same kit without leaving the site;
+                    Full Day still links out, because its extra gear is not
+                    photographed here yet.
+                  */}
+                  {t.id !== "base" && (
+                    <a
+                      href={t.equipmentListUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        ...monoXs,
+                        color: theme.text,
+                        textDecoration: "underline",
+                        textUnderlineOffset: 4,
+                        alignSelf: "flex-start",
+                      }}
+                    >
+                      SEE EQUIPMENT LIST →
+                    </a>
+                  )}
                   <a
                     href="/booking"
                     style={{
