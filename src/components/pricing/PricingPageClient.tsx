@@ -13,6 +13,8 @@ import { useIsMobile } from "@/hooks/useIsMobile";
 import type { PricingView } from "@/data/pricing";
 import { entryPrice } from "@/data/pricing";
 import { TICKET_THEMES } from "./ticketTheme";
+import BaseHireTourModal from "./BaseHireTourModal";
+import { BASE_HIRE_PHOTO_COUNT } from "./baseHireTour";
 import { formatRate } from "@/lib/money";
 
 
@@ -24,6 +26,9 @@ const monoXs: React.CSSProperties = {
 };
 
 export default function PricingPageClient({ pricing }: { pricing: PricingView }) {
+  // The Base Hire photo tour. One flag for the page, not one per ticket:
+  // only the Base Hire ticket opens it, and the photos are its kit.
+  const [tourOpen, setTourOpen] = useState(false);
   // Everything below used to be read from module-level constants. It now
   // arrives as a prop, because the rate card is editable and a build-time
   // import would show whatever was true when the site was last deployed.
@@ -404,6 +409,42 @@ export default function PricingPageClient({ pricing }: { pricing: PricingView })
                       </li>
                     ))}
                   </ul>
+                  {/*
+                    Base Hire only. The photographs ARE the Base Hire kit, and
+                    the Full Day ticket reads "Everything in Base Hire" plus
+                    more — showing this tour there would be half the answer
+                    dressed as the whole one.
+                  */}
+                  {t.id === "base" && (
+                    <button
+                      type="button"
+                      onClick={() => setTourOpen(true)}
+                      style={{
+                        ...monoXs,
+                        alignSelf: "flex-start",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 10,
+                        padding: "11px 16px",
+                        cursor: "pointer",
+                        background: "transparent",
+                        color: theme.text,
+                        border: `1px solid ${theme.text}`,
+                        letterSpacing: "0.18em",
+                      }}
+                    >
+                      SEE THE ROOM
+                      <span style={{ opacity: 0.5 }}>
+                        {BASE_HIRE_PHOTO_COUNT} PHOTOS
+                      </span>
+                      <ScribbleArrowIcon
+                        variant="right"
+                        width={26}
+                        height={12}
+                        color={theme.text}
+                      />
+                    </button>
+                  )}
                   <a
                     href={t.equipmentListUrl}
                     target="_blank"
@@ -932,6 +973,14 @@ export default function PricingPageClient({ pricing }: { pricing: PricingView })
           </a>
         </div>
       </section>
+
+      {/*
+        Mounted once, at the end of the page rather than inside the ticket.
+        <Modal> portals to document.body and renders nothing while closed, so
+        where it sits in this tree costs nothing — but keeping it out of the
+        ticket keeps the ticket's own markup readable.
+      */}
+      <BaseHireTourModal open={tourOpen} onClose={() => setTourOpen(false)} />
     </>
   );
 }
