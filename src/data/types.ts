@@ -37,12 +37,19 @@ export type Rate =
 /**
  * One equipment photo.
  *
- * ALWAYS stored in the repository, never hot-linked: an upload URL from any
- * external service is signed and expires, which would break the page silently
- * some time after it looked fine.
+ * This used to say the src is ALWAYS in the repository and never hot-linked,
+ * on the grounds that an upload URL is signed and expires. In practice the
+ * studio uploads through the panel and the catalogue now holds PUBLIC Vercel
+ * Blob URLs — which are not signed and do not expire, so the reasoning did not
+ * apply to them. Nothing enforced the rule anyway.
+ *
+ * Both shapes are live and both work, for one reason worth keeping in mind:
+ * the gallery renders a plain <img>, not next/image. next.config declares no
+ * images.remotePatterns, so switching to next/image would make the optimiser
+ * reject every blob URL and blank the photos on /equipment and /booking alike.
  */
 export interface EquipmentPhoto {
-  /** e.g. "/images/equipment/cam-01/01.jpg". Lowercase; never an http(s) URL. */
+  /** A repo path ("/images/…") or a public blob URL. Never a signed one. */
   src: string;
   /** Required and non-empty. Describes the gear, not the file. */
   alt: string;

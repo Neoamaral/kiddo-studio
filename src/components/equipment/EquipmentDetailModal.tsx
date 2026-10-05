@@ -1,10 +1,16 @@
 "use client";
 
 /**
- * Equipment detail modal: gallery + description + booking CTA.
+ * Equipment detail modal: gallery + description + an action.
  *
  * Composes the generic <Modal> shell — it owns none of the focus/portal/scroll
  * machinery, only layout and copy.
+ *
+ * The footer is a slot, because the right action depends on where the modal is
+ * opened from. On /equipment it is the pair of links below. Inside the booking
+ * flow a link is actively dangerous: /booking holds the whole half-filled form
+ * in local state, so navigating there from inside it throws away the client's
+ * date, slot, package and details. The booking caller passes a button instead.
  */
 
 import { useId } from "react";
@@ -38,10 +44,14 @@ function DetailContent({
   item,
   titleId,
   onClose,
+  action,
+  availability,
 }: {
   item: EquipmentItem;
   titleId: string;
   onClose: () => void;
+  action?: React.ReactNode;
+  availability?: React.ReactNode;
 }) {
   // The modal only mounts on click, long after useIsMobile has settled — so
   // unlike the ledger rows there is no desktop-then-mobile flash here.
@@ -149,22 +159,41 @@ function DetailContent({
               <ItemPrice item={item} />
             </SpecRow>
             <SpecRow label="AVAILABILITY">
-              <span
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 8,
-                  justifyContent: "flex-end",
-                }}
-              >
-                <StockBars count={item.inStock} />
-                <span style={{ ...monoXsStyle, color: "rgba(0,0,0,0.45)" }}>
-                  {item.inStock} avail.
+              {/*
+                item.inStock is what the studio OWNS, which is the honest answer
+                on /equipment. Inside a booking it is not: the client has picked
+                a date, and a row can read "SOLD OUT — THAT DATE" while the
+                studio owns four. The booking caller passes the date-aware count
+                so the two never contradict each other on screen.
+              */}
+              {availability ?? (
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 8,
+                    justifyContent: "flex-end",
+                  }}
+                >
+                  <StockBars count={item.inStock} />
+                  <span style={{ ...monoXsStyle, color: "rgba(0,0,0,0.45)" }}>
+                    {item.inStock} avail.
+                  </span>
                 </span>
-              </span>
+              )}
             </SpecRow>
           </div>
 
+          {action ?? <DefaultCtas />}
+        </div>
+      </div>
+    </>
+  );
+}
+
+/** The footer /equipment uses. Unchanged — only moved. */
+function DefaultCtas() {
+  return (
           <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 4 }}>
             {/* /booking reads no query params — linking it plain rather than
                 shipping an ?item= nothing consumes. */}
@@ -202,18 +231,24 @@ function DetailContent({
               ENQUIRE ABOUT THIS ITEM
             </a>
           </div>
-        </div>
-      </div>
-    </>
   );
 }
 
 export default function EquipmentDetailModal({
   item,
   onClose,
+  action,
+  availability,
 }: {
   item: EquipmentItem | null;
   onClose: () => void;
+  /**
+   * Replaces the BOOK THIS ITEM / ENQUIRE footer. Omitted on /equipment, where
+   * the links are right. Supplied by the booking flow, where they are not.
+   */
+  action?: React.ReactNode;
+  /** Replaces "N avail." with a date-aware count. See the SpecRow above. */
+  availability?: React.ReactNode;
 }) {
   const titleId = useId();
   const isMobile = useIsMobile(768);
@@ -229,7 +264,14 @@ export default function EquipmentDetailModal({
       {/* key remounts the tree per item, resetting the gallery index to 0
           without a synchronising effect. */}
       {item && (
-        <DetailContent key={item.code} item={item} titleId={titleId} onClose={onClose} />
+        <DetailContent
+          key={item.code}
+          item={item}
+          titleId={titleId}
+          onClose={onClose}
+          action={action}
+          availability={availability}
+        />
       )}
     </Modal>
   );
