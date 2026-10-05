@@ -17,7 +17,8 @@
     "check:contact": "tsx scripts/check-contact.ts",
     "db:migrate": "tsx --env-file=.env.local scripts/db-migrate.ts",
     "check:holds": "tsx --env-file-if-exists=.env.local scripts/check-holds.ts",
-    "make:icons": "node scripts/make-icons.mjs"
+    "make:icons": "node scripts/make-icons.mjs",
+    "check:analytics": "tsx scripts/check-analytics.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "1.1.0",

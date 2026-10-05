@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import { Bebas_Neue, Permanent_Marker, Space_Mono } from "next/font/google";
+import SiteAnalytics from "@/components/analytics/SiteAnalytics";
+import { CONSENT_COOKIE, decodeConsent } from "@/lib/analytics/consent";
 import "./globals.css";
 
 const bebasNeue = Bebas_Neue({
@@ -52,13 +55,30 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+/*
+ * Reading a cookie here opts the whole app out of static rendering.
+ *
+ * That costs nothing today — every public route already declares
+ * `export const dynamic = "force-dynamic"` — and it buys the one thing that
+ * cannot be bought any other way: a returning visitor never sees the consent
+ * banner flash. Discovering the cookie in the browser means one frame of
+ * banner on every navigation, and this site server-renders on every request.
+ *
+ * If a future page wants to be static, it needs its own layout, not a change
+ * here.
+ */
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const consent = decodeConsent((await cookies()).get(CONSENT_COOKIE)?.value);
+
   return (
     <html
       lang="en"
       className={`${bebasNeue.variable} ${permanentMarker.variable} ${spaceMono.variable}`}
     >
-      <body className="antialiased" suppressHydrationWarning>{children}</body>
+      <body className="antialiased" suppressHydrationWarning>
+        {children}
+        <SiteAnalytics initialConsent={consent} />
+      </body>
     </html>
   );
 }

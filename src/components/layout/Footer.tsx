@@ -3,6 +3,7 @@ import Link from "next/link";
 import { KiddoLogo } from "@/components/ui/KiddoLogo";
 import { CircularBadgeSeal } from "@/components/kiddo-assets";
 import { kiddoColors } from "@/components/kiddo-assets/kiddoColors";
+import PreferencesLink from "@/components/analytics/PreferencesLink";
 import type { ContactView } from "@/data/contact";
 
 const footerCols = [
@@ -27,7 +28,10 @@ const footerCols = [
     links: [
       { label: "__CITY__",         href: "/contact"  },
       { label: "FAQ",              href: "/about"    },
+      // NOTE: "Terms" points at /about because no terms page exists. Left as
+      // found — writing terms of service is not a code change.
       { label: "Terms",            href: "/about"    },
+      { label: "Privacy",          href: "/privacy"  },
     ],
   },
 ];
@@ -105,8 +109,24 @@ export default function Footer({ contact }: { contact: ContactView }) {
           <span className="font-mono text-[9px] tracking-widest text-white/30 uppercase">
             © {new Date().getFullYear()} Kiddo Studio. All rights reserved.
           </span>
-          <span className="font-mono text-[9px] tracking-widest text-white/30 uppercase">
-            Made with weird energy.
+          <span className="flex items-center gap-5">
+            {/*
+              Withdrawal has to be as easy as consent, so it lives in the one
+              place that is on every public page rather than buried in the
+              policy. White-on-dark here; the component defaults to the light
+              palette it uses on the privacy page.
+            */}
+            <PreferencesLink
+              label="Cookie settings"
+              style={{
+                color: "rgba(255,255,255,0.3)",
+                letterSpacing: "0.15em",
+                textDecoration: "none",
+              }}
+            />
+            <span className="font-mono text-[9px] tracking-widest text-white/30 uppercase">
+              Made with weird energy.
+            </span>
           </span>
         </div>
       </div>
