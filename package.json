@@ -18,7 +18,9 @@
     "db:migrate": "tsx --env-file=.env.local scripts/db-migrate.ts",
     "check:holds": "tsx --env-file-if-exists=.env.local scripts/check-holds.ts",
     "make:icons": "node scripts/make-icons.mjs",
-    "check:analytics": "tsx scripts/check-analytics.ts"
+    "check:analytics": "tsx scripts/check-analytics.ts",
+    "settings:key": "tsx scripts/settings-key.ts",
+    "check:crypto": "tsx scripts/check-crypto.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "1.1.0",
