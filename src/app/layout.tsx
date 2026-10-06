@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { Bebas_Neue, Permanent_Marker, Space_Mono } from "next/font/google";
 import SiteAnalytics from "@/components/analytics/SiteAnalytics";
 import { CONSENT_COOKIE, decodeConsent } from "@/lib/analytics/consent";
+import { getPublicTagIds } from "@/lib/data-source";
 import "./globals.css";
 
 const bebasNeue = Bebas_Neue({
@@ -68,7 +69,15 @@ export const metadata: Metadata = {
  * here.
  */
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const consent = decodeConsent((await cookies()).get(CONSENT_COOKIE)?.value);
+  /*
+   * Both reads in parallel. The cookie is free; the tag ids are a database
+   * round trip on every page, memoised for five seconds and failing to "load
+   * nothing" rather than throwing — a database blip must never blank a page.
+   */
+  const [consent, tags] = await Promise.all([
+    Promise.resolve(decodeConsent((await cookies()).get(CONSENT_COOKIE)?.value)),
+    getPublicTagIds(),
+  ]);
 
   return (
     <html
@@ -77,7 +86,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     >
       <body className="antialiased" suppressHydrationWarning>
         {children}
-        <SiteAnalytics initialConsent={consent} />
+        <SiteAnalytics initialConsent={consent} tags={tags} />
       </body>
     </html>
   );

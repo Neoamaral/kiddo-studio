@@ -22,7 +22,9 @@
 
 import { usePathname } from "next/navigation";
 import { hydrateConsent, type ConsentState } from "@/lib/analytics/consent";
+import type { PublicTagIds } from "@/lib/integrations/types";
 import ConsentBanner from "./ConsentBanner";
+import TagLoaders from "./TagLoaders";
 
 /**
  * Hydrating during render rather than in an effect, on purpose: an effect runs
@@ -34,13 +36,26 @@ import ConsentBanner from "./ConsentBanner";
  */
 export default function SiteAnalytics({
   initialConsent,
+  tags,
 }: {
   initialConsent: ConsentState | null;
+  /** Public ids from the panel. Empty when the studio has not connected anything. */
+  tags: PublicTagIds;
 }) {
   hydrateConsent(initialConsent);
 
   const pathname = usePathname();
+  /*
+   * The early return covers the TAGS as well as the banner, and that is the
+   * point of putting them behind it: the two excluded routes are excluded from
+   * advertising measurement too, not merely from the consent prompt.
+   */
   if (pathname.startsWith("/admin") || pathname === "/booking/confirm") return null;
 
-  return <ConsentBanner />;
+  return (
+    <>
+      <ConsentBanner />
+      <TagLoaders tags={tags} />
+    </>
+  );
 }

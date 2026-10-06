@@ -3,6 +3,7 @@ import { requireAdmin } from "@/lib/admin/session";
 import { SaveRejected } from "@/lib/admin/catalogue";
 import { DbError } from "@/lib/db/client";
 import { loadIntegrations, saveIntegrations, VersionConflict } from "@/lib/integrations/store";
+import { purgeIntegrations } from "@/lib/data-source";
 import type { IntegrationsPatch } from "@/lib/integrations/types";
 
 export const dynamic = "force-dynamic";
@@ -75,6 +76,10 @@ export async function PUT(req: NextRequest) {
       expectedUpdatedAt: version,
       by: auth.session.u,
     });
+    // Drops this instance's memo so the change shows up at once here. Other
+    // instances catch up within the five-second TTL — the same arrangement
+    // every other admin save uses.
+    purgeIntegrations();
     return NextResponse.json({ ok: true, version: saved.updatedAt });
   } catch (err) {
     return errorResponse(err);

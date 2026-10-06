@@ -29,6 +29,8 @@ import { deriveCatalogue, SEED_CATALOGUE, type CatalogueView } from "@/data/equi
 import { derivePricing, SEED_PRICING, type PricingView } from "@/data/pricing";
 import { deriveContact, SEED_CONTACT, type ContactView } from "@/data/contact";
 import { readContact, readEquipment, readPricing } from "@/lib/admin/store";
+import { readPublicTagIds } from "@/lib/integrations/store";
+import { NO_TAGS, type PublicTagIds } from "@/lib/integrations/types";
 
 const TTL_MS = 5_000;
 
@@ -40,6 +42,7 @@ interface Slot<T> {
 const catalogueSlot: Slot<CatalogueView> = { value: null, at: 0 };
 const pricingSlot: Slot<PricingView> = { value: null, at: 0 };
 const contactSlot: Slot<ContactView> = { value: null, at: 0 };
+const tagSlot: Slot<PublicTagIds> = { value: null, at: 0 };
 
 /** Shared shape: serve a fresh-enough value, otherwise fetch and remember. */
 async function cached<T>(slot: Slot<T>, load: () => Promise<T>, fallback: T): Promise<T> {
@@ -103,4 +106,29 @@ export function purgePricing(): void {
 export function purgeContact(): void {
   contactSlot.value = null;
   contactSlot.at = 0;
+}
+
+/**
+ * The advertising tag ids, for the root layout.
+ *
+ * This one is on the RENDER PATH OF EVERY PAGE, which the others are not — a
+ * page that does not need the catalogue simply never asks for it, but every
+ * page asks for this. Hence the same five-second memo and, on top of it, a
+ * fallback that is "load nothing" rather than a seed.
+ *
+ * Failing to NO_TAGS is the right failure. A database blip must not blank the
+ * site, and the worst case here is that marketing measurement pauses for a few
+ * seconds — which is a far better outcome than a page that does not render.
+ *
+ * These ids are PUBLIC: they ship to the browser for every visitor who
+ * accepted marketing. The Conversions API token is not here and must never be;
+ * only getCapiToken() reads that, and only on the server.
+ */
+export async function getPublicTagIds(): Promise<PublicTagIds> {
+  return cached(tagSlot, readPublicTagIds, NO_TAGS);
+}
+
+export function purgeIntegrations(): void {
+  tagSlot.value = null;
+  tagSlot.at = 0;
 }
