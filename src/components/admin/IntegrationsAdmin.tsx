@@ -155,6 +155,7 @@ export default function IntegrationsAdmin() {
   const [dirty, setDirty] = useState(false);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [keyProblem, setKeyProblem] = useState<string | null>(null);
 
   /** Empty means "not touched". Only sent when it has been typed into. */
   const [token, setToken] = useState("");
@@ -167,6 +168,7 @@ export default function IntegrationsAdmin() {
       const body = (await res.json().catch(() => ({}))) as {
         data?: IntegrationsView;
         readOnly?: boolean;
+        keyProblem?: string | null;
         error?: string;
       };
       if (!res.ok || !body.data) {
@@ -174,6 +176,7 @@ export default function IntegrationsAdmin() {
         return;
       }
       setLoadError(null);
+      setKeyProblem(body.keyProblem ?? null);
       setData(body.data);
       setVersion(body.data.updatedAt);
       setReadOnly(body.readOnly !== false);
@@ -300,6 +303,27 @@ export default function IntegrationsAdmin() {
       </p>
 
       {loadError && <Banner tone="error">{loadError}</Banner>}
+
+      {/*
+        Shown on EVERY load, not only when a token already exists. Discovering
+        this by being refused at the moment you paste a token is the worst
+        possible time to find out, and "no encryption key" alone does not
+        distinguish "never set" from "set to something 31 bytes long", which
+        need opposite actions.
+      */}
+      {keyProblem && (
+        <Banner tone="error">
+          <strong>Server-side events cannot be switched on yet.</strong>
+          <br />
+          {keyProblem}
+          <br />
+          <br />
+          This is a deployment setting, not something to fix on this screen. Run{" "}
+          <code>npm run settings:key</code>, paste the whole line into the environment
+          variable <code>SETTINGS_KEY</code>, and redeploy. Copy it rather than retyping it —
+          a single stray character changes the length and it will be refused again.
+        </Banner>
+      )}
       {readOnly && !loadError && (
         <Banner tone="info">
           The database is not connected, so nothing can be saved here yet.

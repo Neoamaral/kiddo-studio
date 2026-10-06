@@ -176,11 +176,27 @@ export function open(record: string, aad: string): string {
 
 /** True when the server holds a usable key. Lets a caller ask without catching. */
 export function hasSettingsKey(): boolean {
+  return settingsKeyProblem() === null;
+}
+
+/**
+ * WHY the key is unusable, in words, or null when it is fine.
+ *
+ * Surfaced to the admin screen on purpose. "This server has no encryption key"
+ * is true and useless: the two real causes — never set, and set to something
+ * that is not 32 bytes — need opposite actions, and a studio that pasted a
+ * value and sees "no key" will reasonably conclude the paste did not save.
+ *
+ * Safe to display. The message carries a LENGTH and never a fragment of the
+ * value, and a length is exactly what distinguishes "you have a stray
+ * character in it" from "you never set it".
+ */
+export function settingsKeyProblem(): string | null {
   try {
     ikm();
-    return true;
-  } catch {
-    return false;
+    return null;
+  } catch (err) {
+    return err instanceof Error ? err.message : "SETTINGS_KEY could not be read.";
   }
 }
 

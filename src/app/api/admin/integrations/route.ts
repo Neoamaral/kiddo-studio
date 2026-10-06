@@ -20,8 +20,8 @@ export async function GET(req: NextRequest) {
   const auth = requireAdmin(req);
   if (!auth.ok) return auth.response;
   try {
-    const { data, readOnly } = await loadIntegrations();
-    return NextResponse.json({ data, readOnly });
+    const { data, readOnly, keyProblem } = await loadIntegrations();
+    return NextResponse.json({ data, readOnly, keyProblem });
   } catch (err) {
     return errorResponse(err);
   }

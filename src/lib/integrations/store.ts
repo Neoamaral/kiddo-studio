@@ -20,6 +20,7 @@ import { SaveRejected } from "@/lib/admin/catalogue";
 import {
   currentKeyId,
   hasSettingsKey,
+  settingsKeyProblem,
   open,
   recordKeyId,
   seal,
@@ -59,6 +60,12 @@ function describeToken(sealed: string | null): TokenState {
 export interface LoadedIntegrations {
   data: IntegrationsView;
   readOnly: boolean;
+  /**
+   * Why the server cannot seal a token, or null. Reported on EVERY load, not
+   * only when a token already exists — otherwise the studio discovers it by
+   * being refused at the moment they paste one.
+   */
+  keyProblem: string | null;
 }
 
 const EMPTY: IntegrationsView = {
@@ -73,12 +80,14 @@ const EMPTY: IntegrationsView = {
 };
 
 export async function loadIntegrations(): Promise<LoadedIntegrations> {
-  if (!isDbConfigured()) return { data: EMPTY, readOnly: true };
+  const keyProblem = settingsKeyProblem();
+  if (!isDbConfigured()) return { data: EMPTY, readOnly: true, keyProblem };
   const row = await readRow();
-  if (!row) return { data: EMPTY, readOnly: true };
+  if (!row) return { data: EMPTY, readOnly: true, keyProblem };
 
   return {
     readOnly: false,
+    keyProblem,
     data: {
       metaPixelId: row.metaPixelId ?? "",
       metaTestEventCode: row.metaTestEventCode ?? "",
