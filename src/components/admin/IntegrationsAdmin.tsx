@@ -32,7 +32,13 @@ type Status =
 type TestState =
   | { kind: "idle" }
   | { kind: "running" }
-  | { kind: "ok"; name: string | null; pixelId: string; lastFiredAt: string | null }
+  | {
+      kind: "ok";
+      name: string | null;
+      pixelId: string;
+      lastFiredAt: string | null;
+      sentTestEvent: boolean;
+    }
   | { kind: "fail"; message: string; hint?: string; traceId: string | null; apiVersion: string };
 
 const EMPTY: IntegrationsView = {
@@ -215,7 +221,14 @@ export default function IntegrationsAdmin() {
         headers: { "Content-Type": "application/json" },
         // The typed token when there is one, so a token can be checked before
         // it is committed; otherwise the server uses the stored one.
-        body: JSON.stringify({ pixelId: data.metaPixelId, token: tokenTouched ? token : "" }),
+        body: JSON.stringify({
+          pixelId: data.metaPixelId,
+          token: tokenTouched ? token : "",
+          // Sent so the server can fall back to a SEND test when the read test
+          // is refused — which is what happens with an ordinary Conversions
+          // API token. Without a code it does not send, by design.
+          testEventCode: data.metaTestEventCode,
+        }),
       });
       const b = (await res.json().catch(() => ({}))) as Record<string, unknown>;
       if (b.ok === true) {
@@ -224,6 +237,7 @@ export default function IntegrationsAdmin() {
           name: (b.name as string) ?? null,
           pixelId: (b.pixelId as string) ?? data.metaPixelId,
           lastFiredAt: (b.lastFiredAt as string) ?? null,
+          sentTestEvent: b.sentTestEvent === true,
         });
       } else {
         setTest({
@@ -375,15 +389,29 @@ export default function IntegrationsAdmin() {
         {test.kind === "ok" && (
           <div style={{ marginTop: 12 }}>
             <Banner tone="ok">
-              <strong>Connected{test.name ? ` to: ${test.name}` : ""}.</strong> Meta recognises
-              this token for pixel {test.pixelId}.
-              <br />
-              <span style={{ ...mono, fontSize: 9 }}>
-                LAST BROWSER EVENT:{" "}
-                {test.lastFiredAt
-                  ? new Date(test.lastFiredAt).toLocaleString()
-                  : "NEVER — THE PIXEL HAS NOT FIRED YET"}
-              </span>
+              {test.sentTestEvent ? (
+                <>
+                  <strong>Connected.</strong> Meta accepted a test event for pixel{" "}
+                  {test.pixelId}. Open <strong>Events Manager &gt; Test events</strong> and you
+                  will see a PageView arrive within a few seconds.
+                  <br />
+                  <span style={{ ...mono, fontSize: 9 }}>
+                    SENT WITH YOUR TEST CODE, SO IT DOES NOT COUNT IN REPORTING.
+                  </span>
+                </>
+              ) : (
+                <>
+                  <strong>Connected{test.name ? ` to: ${test.name}` : ""}.</strong> Meta
+                  recognises this token for pixel {test.pixelId}.
+                  <br />
+                  <span style={{ ...mono, fontSize: 9 }}>
+                    LAST BROWSER EVENT:{" "}
+                    {test.lastFiredAt
+                      ? new Date(test.lastFiredAt).toLocaleString()
+                      : "NEVER — THE PIXEL HAS NOT FIRED YET"}
+                  </span>
+                </>
+              )}
             </Banner>
           </div>
         )}

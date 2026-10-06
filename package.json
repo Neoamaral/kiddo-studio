@@ -20,7 +20,8 @@
     "make:icons": "node scripts/make-icons.mjs",
     "check:analytics": "tsx scripts/check-analytics.ts",
     "settings:key": "tsx scripts/settings-key.ts",
-    "check:crypto": "tsx scripts/check-crypto.ts"
+    "check:crypto": "tsx scripts/check-crypto.ts",
+    "check:integrations": "tsx scripts/check-integrations.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "1.1.0",

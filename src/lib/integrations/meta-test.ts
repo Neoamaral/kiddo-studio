@@ -40,10 +40,12 @@ export const META_API_VERSION = "v25.0";
 export interface MetaProbeOk {
   ok: true;
   pixelId: string;
-  /** The dataset name as Meta has it. */
+  /** The dataset name as Meta has it. Null when the send test answered instead. */
   name: string | null;
   /** ISO, or null when the pixel has never fired from a browser. */
   lastFiredAt: string | null;
+  /** True when this was proved by sending an event rather than by reading. */
+  sentTestEvent?: boolean;
 }
 
 export interface MetaProbeFail {
@@ -58,6 +60,11 @@ export interface MetaProbeFail {
   traceId: string | null;
   /** Printed small, because a version problem presents as a token problem. */
   apiVersion: string;
+  /**
+   * True when the read test was refused for a reason that the SEND test can
+   * still get past — the screen offers the second step instead of a dead end.
+   */
+  sendTestAvailable?: boolean;
 }
 
 export type MetaProbe = MetaProbeOk | MetaProbeFail;
@@ -113,6 +120,29 @@ export function mapMetaError(err: GraphError | undefined, status: number): MetaP
       ...base,
       message: "That Pixel ID does not exist, or this token has no access to it.",
       hint: "Check the ID next to the dataset name in Events Manager, and that the token was generated for that same dataset.",
+    };
+  }
+
+  /*
+   * (#100) Missing Permission with NO subcode, from a GET on the pixel node.
+   *
+   * This is not a broken token and saying "missing permission" to the studio
+   * would send them hunting for a setting that does not need changing. A
+   * Conversions API token generated in Events Manager is scoped to SEND events
+   * to one dataset; reading the dataset's own record needs ads_management,
+   * which that token deliberately does not carry.
+   *
+   * So the read test cannot answer the question for this kind of token, and
+   * the honest thing is to say so and name the two ways forward.
+   */
+  if (code === 100) {
+    return {
+      ...base,
+      message:
+        "This token can send events but cannot read the pixel — which is normal for a Conversions API token, and not a fault.",
+      hint:
+        "Two ways to confirm it works. Either paste a test event code from Events Manager > Test events and press Test again, and I will send a real test event through it. Or regenerate the token choosing \"Set up with the Dataset Quality API\", which also grants read permission to the token you already have.",
+      sendTestAvailable: true,
     };
   }
 
@@ -190,5 +220,119 @@ export async function probePixel(pixelId: string, token: string): Promise<MetaPr
     pixelId: body.id ?? pixelId,
     name: body.name ?? null,
     lastFiredAt: body.last_fired_time ?? null,
+  };
+}
+
+/* ── Tier 2: the authoritative round trip ────────────────────────────────── */
+
+/**
+ * Sends one event and reports what Meta did with it.
+ *
+ * This is the test that works for the token the studio actually has. A
+ * Conversions API token is scoped to SEND events to one dataset, so asking it
+ * to send one is asking it to do the only thing it is for — and a successful
+ * send proves the pairing just as well as a read would, with the advantage
+ * that the studio can watch it arrive in Events Manager.
+ *
+ * Every choice in the payload is a decision:
+ *
+ *   PageView, never Lead or Purchase — a connection test must not be able to
+ *   enter attribution or optimisation data.
+ *
+ *   A synthetic hashed email, not a real person's. Meta requires at least one
+ *   customer-information parameter; this is the SHA-256 of a fixed address
+ *   belonging to the studio, so it is deterministic, auditable, and not a data
+ *   subject.
+ *
+ *   access_token in the BODY, not the query string, so it cannot end up in an
+ *   access log or a proxy trace.
+ *
+ *   No retry. A retry on a test button is a second real event.
+ *
+ * `testEventCode` matters more than it looks: with it the event appears under
+ * Events Manager > Test events within seconds and is EXCLUDED from reporting
+ * and optimisation. Without it, the event counts as one real PageView. The
+ * route therefore only calls this with a code, and the screen says why.
+ */
+export async function sendTestEvent(
+  pixelId: string,
+  token: string,
+  testEventCode: string,
+  siteUrl: string
+): Promise<MetaProbe> {
+  const { createHash, randomBytes } = await import("node:crypto");
+  const em = createHash("sha256").update("capi-test@kiddostudio.pt").digest("hex");
+
+  const payload = {
+    data: [
+      {
+        event_name: "PageView",
+        event_time: Math.floor(Date.now() / 1000),
+        action_source: "website",
+        event_source_url: siteUrl,
+        event_id: `kiddo-capi-test-${randomBytes(8).toString("hex")}`,
+        user_data: {
+          em: [em],
+          client_user_agent: "KiddoStudioAdmin/1.0 (connection test)",
+        },
+      },
+    ],
+    test_event_code: testEventCode,
+    access_token: token,
+  };
+
+  let res: Response;
+  let body: { events_received?: number; messages?: unknown[]; fbtrace_id?: string; error?: GraphError };
+  try {
+    res = await fetch(
+      `https://graph.facebook.com/${META_API_VERSION}/${encodeURIComponent(pixelId)}/events`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(6000),
+        cache: "no-store",
+      }
+    );
+    body = (await res.json().catch(() => ({}))) as typeof body;
+  } catch (err) {
+    const timedOut = err instanceof Error && err.name === "TimeoutError";
+    return {
+      ok: false,
+      message: timedOut
+        ? "Meta did not answer within six seconds."
+        : "Could not reach Meta from the server.",
+      code: null,
+      subcode: null,
+      traceId: null,
+      apiVersion: META_API_VERSION,
+    };
+  }
+
+  if (!res.ok || body.error) return mapMetaError(body.error, res.status);
+
+  /*
+   * A 200 is not enough. Meta answers 200 with events_received: 0 and a
+   * `messages` array when it took the request but refused the event — treating
+   * that as success is how a broken integration gets a green tick.
+   */
+  if (body.events_received !== 1 || (body.messages?.length ?? 0) > 0) {
+    return {
+      ok: false,
+      message: `Meta accepted the request but not the event (received ${body.events_received ?? 0}).`,
+      hint: body.messages?.length ? JSON.stringify(body.messages) : undefined,
+      code: null,
+      subcode: null,
+      traceId: body.fbtrace_id ?? null,
+      apiVersion: META_API_VERSION,
+    };
+  }
+
+  return {
+    ok: true,
+    pixelId,
+    name: null,
+    lastFiredAt: null,
+    sentTestEvent: true,
   };
 }

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin/session";
 import { rateLimited, type RateLimit } from "@/lib/guard";
 import { getCapiToken } from "@/lib/integrations/store";
-import { probePixel } from "@/lib/integrations/meta-test";
+import { probePixel, sendTestEvent } from "@/lib/integrations/meta-test";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  let body: { pixelId?: unknown; token?: unknown };
+  let body: { pixelId?: unknown; token?: unknown; testEventCode?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -61,12 +61,30 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  const result = await probePixel(pixelId, token);
+  const read = await probePixel(pixelId, token);
 
   /*
-   * 200 either way. A failed PROBE is a successful REQUEST — the answer "Meta
-   * says your token is wrong" is the thing the studio asked for, and a 4xx
-   * here would make the browser treat a working feature as a broken one.
+   * TWO TIERS, and the second only runs when the first cannot answer.
+   *
+   * The read test is tried first because it has no side effects at all. But a
+   * Conversions API token generated in Events Manager is scoped to SEND events
+   * to one dataset, not to read that dataset's record — so for the most common
+   * kind of token the read is refused with (#100) Missing Permission, which
+   * says nothing about whether the integration works.
+   *
+   * The send test answers it properly: it asks the token to do the one thing
+   * it exists for. It is only run WITH a test event code, because without one
+   * the event counts as a real PageView in the studio's reporting, and a
+   * connection test must not quietly write to the data it is testing.
    */
-  return NextResponse.json(result);
+  if (read.ok || !read.sendTestAvailable) return NextResponse.json(read);
+
+  const code = typeof body.testEventCode === "string" ? body.testEventCode.trim() : "";
+  if (!/^TEST[0-9]{1,12}$/.test(code)) {
+    return NextResponse.json(read);
+  }
+
+  const siteUrl = process.env.SITE_URL?.replace(/\/+$/, "") || "https://www.kiddostudio.pt";
+  const sent = await sendTestEvent(pixelId, token, code, siteUrl + "/");
+  return NextResponse.json(sent);
 }
