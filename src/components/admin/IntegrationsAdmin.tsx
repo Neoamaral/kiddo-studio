@@ -39,7 +39,20 @@ type TestState =
       lastFiredAt: string | null;
       sentTestEvent: boolean;
     }
-  | { kind: "fail"; message: string; hint?: string; traceId: string | null; apiVersion: string };
+  | {
+      kind: "fail";
+      message: string;
+      hint?: string;
+      traceId: string | null;
+      apiVersion: string;
+      /**
+       * True when the read test was refused for a reason that is not a fault —
+       * a Conversions API token simply cannot read the pixel. Shown in a
+       * neutral banner, because a red alert saying "this is not a fault" is a
+       * contradiction the reader has to resolve before they can act.
+       */
+      needsSendTest?: boolean;
+    };
 
 const EMPTY: IntegrationsView = {
   metaPixelId: "",
@@ -246,6 +259,7 @@ export default function IntegrationsAdmin() {
           hint: b.hint as string | undefined,
           traceId: (b.traceId as string) ?? null,
           apiVersion: (b.apiVersion as string) ?? "",
+          needsSendTest: b.sendTestAvailable === true,
         });
       }
     } catch {
@@ -417,12 +431,30 @@ export default function IntegrationsAdmin() {
         )}
         {test.kind === "fail" && (
           <div style={{ marginTop: 12 }}>
-            <Banner tone="error">
+            <Banner tone={test.needsSendTest ? "info" : "error"}>
+              {test.needsSendTest && (
+                <>
+                  <strong>Almost there — one more step.</strong>
+                  <br />
+                </>
+              )}
               {test.message}
               {test.hint && (
                 <>
                   <br />
                   {test.hint}
+                </>
+              )}
+              {test.needsSendTest && !data.metaTestEventCode.trim() && (
+                <>
+                  <br />
+                  <br />
+                  <strong>
+                    Put the code in the &ldquo;Test event code&rdquo; box above and press Test
+                    again.
+                  </strong>{" "}
+                  Nothing is saved until you press Save, and a test event sent with a code does
+                  not count in your reporting.
                 </>
               )}
               {(test.traceId || test.apiVersion) && (
