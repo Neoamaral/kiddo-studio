@@ -15,6 +15,7 @@ import type { PackageId } from "@/data/types";
 import { entryPrice } from "@/data/pricing";
 import { TICKET_THEMES } from "./ticketTheme";
 import PackageTourModal from "./PackageTourModal";
+import { track } from "@/lib/analytics/track";
 import { BASE_HIRE_TOUR, FULL_HOUSE_TOUR, photoCount } from "./packageTours";
 import { formatRate } from "@/lib/money";
 
@@ -418,7 +419,10 @@ export default function PricingPageClient({ pricing }: { pricing: PricingView })
                   */}
                   <button
                       type="button"
-                      onClick={() => setTour(t.id)}
+                      onClick={() => {
+                        track("package_tour_open", { package_id: t.id });
+                        setTour(t.id);
+                      }}
                       style={{
                         ...monoXs,
                         alignSelf: "flex-start",

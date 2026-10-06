@@ -16,6 +16,7 @@ import { KiddoLogo } from "@/components/ui/KiddoLogo";
 const TABS = [
   { href: "/admin", label: "OVERVIEW" },
   { href: "/admin/requests", label: "REQUESTS" },
+  { href: "/admin/analytics", label: "ANALYTICS" },
   { href: "/admin/calendar", label: "CALENDAR" },
   { href: "/admin/clients", label: "CLIENTS" },
   { href: "/admin/equipment", label: "EQUIPMENT" },

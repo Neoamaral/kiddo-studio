@@ -11,12 +11,13 @@
  * and the step machine each live in their own file.
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { HandwrittenWord, kiddoColors } from "@/components/kiddo-assets";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { pixelLead } from "@/lib/analytics/pixel";
+import { track } from "@/lib/analytics/track";
 import { useAvailability, availabilityData, invalidateAvailability } from "@/hooks/useAvailability";
 import {
   ADDON_OPTIONS,
@@ -51,6 +52,7 @@ import {
   stepIndex,
   stepNumber,
   type BookingSelection,
+  type StepId,
 } from "./steps";
 
 interface BookingFormData {
@@ -196,9 +198,41 @@ export default function BookingPageClient({
     [slotId, spaceId, packageId, date, addons, equipment, bundleIds, pricing, catalogue]
   );
 
+  /* ── Measurement ──────────────────────────────────────────── */
+
+  /*
+   * THE EFFECT IS THE ONLY EMITTER OF booking_step_view, never the setters.
+   *
+   * Every route into a step ends at activeStep: the choose* functions, the
+   * stepper bar, and a conflict card sending someone back to the slot. Watching
+   * the state instead of the five ways of changing it is what stops the funnel
+   * from quietly missing whichever route gets added next.
+   *
+   * A step viewed twice in one session counts once, because the funnel query
+   * counts DISTINCT sessions per step index.
+   */
+  const prevStep = useRef<number | null>(null);
+  useEffect(() => {
+    const from = prevStep.current;
+    prevStep.current = activeStep;
+    const step = STEPS[activeStep];
+    if (!step) return;
+    const at = { step: step.id, stepIndex: activeStep };
+    // Backwards first, so the pair reads in the order it happened.
+    if (from !== null && activeStep < from) {
+      track("booking_step_back", { from_index: from }, at);
+    }
+    track("booking_step_view", undefined, at);
+  }, [activeStep]);
+
+  /** A step answered. The choice id, never anything the visitor typed. */
+  const completed = (id: StepId, choice: string) =>
+    track("booking_step_complete", { choice }, { step: id, stepIndex: stepIndex(id) });
+
   /* ── Setters that invalidate downstream choices ────────────────────────── */
 
   const chooseSpace = (id: string) => {
+    completed("space", id);
     setSpaceId(id);
     // A slot free in one room may be taken in the other.
     setSlotId("");
@@ -206,23 +240,65 @@ export default function BookingPageClient({
   };
 
   const choosePackage = (id: string) => {
+    completed("package", id);
     setPackageId(id);
     setActiveStep(stepIndex("date"));
   };
 
   const chooseDate = (d: ISODate) => {
+    completed("date", d);
     setDate(d);
     setSlotId("");
     setActiveStep(stepIndex("slot"));
   };
 
   const chooseSlot = (id: string) => {
+    completed("slot", id);
     setSlotId(id);
     setActiveStep(stepIndex("addons"));
   };
 
-  const toggleAddon = (id: string) =>
+  const toggleAddon = (id: string) => {
+    // Read before the update, not inside it: an updater can run twice.
+    track("booking_option", { kind: "addon", id, action: addons[id] ? "remove" : "add" });
     setAddons((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  /*
+   * The gear picker hands back the whole quantity map, so what changed has to
+   * be derived. Worth it: "which light got added and then removed" is the
+   * question the gear step exists to answer.
+   */
+  const changeEquipment = (next: Record<string, number>) => {
+    for (const code of new Set([...Object.keys(equipment), ...Object.keys(next)])) {
+      const was = equipment[code] ?? 0;
+      const now = next[code] ?? 0;
+      if (now === was) continue;
+      track("booking_option", {
+        kind: "gear",
+        id: code,
+        qty: now,
+        action: now === 0 ? "remove" : was === 0 ? "add" : "qty",
+      });
+    }
+    setEquipment(next);
+  };
+
+  const changeBundles = (next: string[]) => {
+    for (const id of next) {
+      if (!bundleIds.includes(id)) track("booking_option", { kind: "bundle", id, action: "add" });
+    }
+    for (const id of bundleIds) {
+      if (!next.includes(id)) track("booking_option", { kind: "bundle", id, action: "remove" });
+    }
+    setBundleIds(next);
+  };
+
+  const changeMonth = (key: string) => {
+    // monthKey is YYYY-MM, so a string compare is a chronological compare.
+    track("booking_calendar_nav", { direction: month && key < month ? "prev" : "next" });
+    setMonth(key);
+  };
 
   const goTo = (i: number) => {
     if (canOpen(i, selection)) setActiveStep(i);
@@ -238,6 +314,22 @@ export default function BookingPageClient({
     // Kept across retries so a resubmission is recognised as the same booking.
     const key = idempotencyKey ?? crypto.randomUUID();
     if (!idempotencyKey) setIdempotencyKey(key);
+
+    /*
+     * The attempt, not the success. The gap between this and
+     * booking_submitted is the only visible measure of the server refusing a
+     * booking the visitor had already finished filling in.
+     */
+    const totalCents = Math.round(quote.total * 100);
+    track(
+      "booking_submit_attempt",
+      {
+        total_cents: totalCents,
+        addon_count: selectedAddonIds(addons).length,
+        gear_count: Object.values(equipment).filter((n) => n > 0).length + bundleIds.length,
+      },
+      { step: "details", stepIndex: stepIndex("details") }
+    );
 
     setSubmit({ status: "sending" });
     try {
@@ -282,6 +374,8 @@ export default function BookingPageClient({
          * when fbq is absent or when marketing was declined.
          */
         pixelLead(data.ref, quote.total);
+        // Carries the ref, which is what ties this session to the request row.
+        track("booking_submitted", { total_cents: totalCents }, { ref: data.ref });
         setSubmit({
           status: "done",
           ref: data.ref,
@@ -290,6 +384,9 @@ export default function BookingPageClient({
         return;
       }
       if (res.status === 409) {
+        track("booking_conflict", {
+          kind: data.error === "EQUIPMENT_TAKEN" ? "equipment" : "slot",
+        });
         setSubmit({
           status: "conflict",
           message: data.message ?? "Someone confirmed that slot a moment ago.",
@@ -298,11 +395,14 @@ export default function BookingPageClient({
         return;
       }
       // Never render success on a failure — that was the old bug.
+      track("booking_error", { status: res.status });
       setSubmit({
         status: "error",
         message: data.error ?? `The studio didn't accept the booking (${res.status}).`,
       });
     } catch {
+      // 0 is the browser's own convention for "the request never got a reply".
+      track("booking_error", { status: 0 });
       setSubmit({
         status: "error",
         message: "We couldn't reach the studio. Check your connection and try again.",
@@ -740,7 +840,7 @@ export default function BookingPageClient({
                   loading={availability.status === "loading"}
                   nowMs={nowMs}
                   month={month}
-                  onMonthChange={setMonth}
+                  onMonthChange={changeMonth}
                 />
                 <StepNav onBack={() => goTo(1)} />
               </StepCard>
@@ -931,9 +1031,9 @@ export default function BookingPageClient({
                 <EquipmentPicker
                   catalogue={catalogue}
                   value={equipment}
-                  onChange={setEquipment}
+                  onChange={changeEquipment}
                   bundleIds={bundleIds}
-                  onBundlesChange={setBundleIds}
+                  onBundlesChange={changeBundles}
                   remaining={(code, inStock) =>
                     equipmentRemaining(date, code, monthData, inStock)
                   }

@@ -20,10 +20,13 @@
  *                     a credential does not get a tracker mounted on it at all.
  */
 
+import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { hydrateConsent, type ConsentState } from "@/lib/analytics/consent";
 import type { PublicTagIds } from "@/lib/integrations/types";
+import { startTracking } from "@/lib/analytics/track";
 import ConsentBanner from "./ConsentBanner";
+import PageSignals from "./PageSignals";
 import TagLoaders from "./TagLoaders";
 
 /**
@@ -45,16 +48,29 @@ export default function SiteAnalytics({
   hydrateConsent(initialConsent);
 
   const pathname = usePathname();
+  const excluded = pathname.startsWith("/admin") || pathname === "/booking/confirm";
+
+  /*
+   * The flush triggers — the timer, visibilitychange and pagehide — are wired
+   * once per page. The effect runs before the early return below because hooks
+   * cannot be conditional; startTracking is idempotent and nothing is queued on
+   * an excluded route anyway, since PageSignals never mounts there.
+   */
+  useEffect(() => {
+    if (excluded) return;
+    return startTracking();
+  }, [excluded]);
   /*
    * The early return covers the TAGS as well as the banner, and that is the
    * point of putting them behind it: the two excluded routes are excluded from
    * advertising measurement too, not merely from the consent prompt.
    */
-  if (pathname.startsWith("/admin") || pathname === "/booking/confirm") return null;
+  if (excluded) return null;
 
   return (
     <>
       <ConsentBanner />
+      <PageSignals />
       <TagLoaders tags={tags} />
     </>
   );

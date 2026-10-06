@@ -13,12 +13,13 @@
  * date, slot, package and details. The booking caller passes a button instead.
  */
 
-import { useId } from "react";
+import { useEffect, useId } from "react";
 import { ScribbleArrowIcon, kiddoColors } from "@/components/kiddo-assets";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { itemDescription, itemPhotos } from "@/data/equipment";
 import type { EquipmentItem } from "@/data/types";
 import Modal from "@/components/ui/Modal";
+import { track } from "@/lib/analytics/track";
 import EquipmentGallery from "./EquipmentGallery";
 import { HotBadge, ItemPrice, StockBars, displayStyle, monoXsStyle } from "./ledgerBits";
 
@@ -252,6 +253,21 @@ export default function EquipmentDetailModal({
 }) {
   const titleId = useId();
   const isMobile = useIsMobile(768);
+
+  /*
+   * Measured here rather than at the two call sites, so /equipment and the
+   * booking gear step report the same event without either remembering to.
+   * Keyed on the code: reopening the same item while it is already open does
+   * not re-fire, switching items does.
+   */
+  useEffect(() => {
+    if (!item) return;
+    track("equipment_detail_open", {
+      code: item.code,
+      // "CAM-01" -> "CAM". The category lives on the group, not the item.
+      category: item.code.split("-")[0],
+    });
+  }, [item?.code]);
 
   return (
     <Modal

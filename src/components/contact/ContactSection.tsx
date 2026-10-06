@@ -15,6 +15,7 @@ import {
 } from "@/components/kiddo-assets";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import type { ContactView } from "@/data/contact";
+import { track } from "@/lib/analytics/track";
 
 export default function ContactSection({ contact }: { contact: ContactView }) {
   const isMobile = useIsMobile();
@@ -35,6 +36,8 @@ export default function ContactSection({ contact }: { contact: ContactView }) {
     e.preventDefault();
     setLoading(true);
     setFailed(null);
+    // The enquiry TYPE, never the message and never who sent it.
+    track("contact_submit_attempt", { enquiry_type: form.type });
     /*
      * A failure is now shown, not swallowed.
      *
@@ -51,8 +54,10 @@ export default function ContactSection({ contact }: { contact: ContactView }) {
         body: JSON.stringify({ ...form, subject: form.type }),
       });
       if (res.ok) {
+        track("contact_submitted", { enquiry_type: form.type });
         setSent(true);
       } else {
+        track("contact_error", { status: res.status });
         const body = (await res.json().catch(() => ({}))) as { error?: string };
         setFailed(
           body.error ??
@@ -60,6 +65,7 @@ export default function ContactSection({ contact }: { contact: ContactView }) {
         );
       }
     } catch {
+      track("contact_error", { status: 0 });
       setFailed(
         `We couldn't reach the studio just now. Please email ${contact.email} instead.`
       );
