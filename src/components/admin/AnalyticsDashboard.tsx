@@ -240,7 +240,7 @@ export default function AnalyticsDashboard({
   const coverage = t.submitted > 0 ? t.submittedSeen / t.submitted : null;
 
   return (
-    <div style={{ padding: "28px 24px 60px", maxWidth: 1180, margin: "0 auto" }}>
+    <div>
       <style>{FUNNEL_CSS}</style>
       <div
         style={{

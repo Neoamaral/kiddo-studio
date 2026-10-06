@@ -23,7 +23,8 @@
     "check:crypto": "tsx scripts/check-crypto.ts",
     "check:integrations": "tsx scripts/check-integrations.ts",
     "check:dashboard": "node --env-file=.env.local scripts/check-dashboard.mjs",
-    "seed:analytics": "node --env-file=.env.local scripts/seed-analytics-test.mjs"
+    "seed:analytics": "node --env-file=.env.local scripts/seed-analytics-test.mjs",
+    "check:admin-nav": "node scripts/check-admin-nav.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "1.1.0",
