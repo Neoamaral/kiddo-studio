@@ -16,6 +16,8 @@ import { readMonthAvailability } from "@/lib/db/availability";
 import { deadLetter } from "@/lib/deadletter";
 import { CONFIRM_LIMIT, rateLimited, wrongOrigin } from "@/lib/guard";
 import { confirmUrl } from "@/lib/booking-token";
+import { sendLeadEvent } from "@/lib/integrations/capi";
+import { CONSENT_COOKIE } from "@/lib/analytics/consent";
 
 /** First item whose requested quantity exceeds what is left that day, if any. */
 function equipmentShortage(
@@ -306,6 +308,43 @@ export async function POST(req: NextRequest) {
         },
         { status: 502 }
       );
+    }
+
+    /*
+     * Meta's Conversions API, LAST and only once the booking is safe.
+     *
+     * Placed after every recovery path so that a slow or broken Graph API can
+     * never be the reason a booking is lost — by this line the request is in
+     * the database, or in the dead-letter store, or in the studio's inbox.
+     *
+     * AWAITED, not fired and forgotten. On Vercel the function is frozen once
+     * the response is returned, so a floating promise may simply never run —
+     * the same lesson db/client.ts records about pool.end(). Two seconds of
+     * timeout inside a function whose own work is already done.
+     *
+     * Consent comes from THIS REQUEST'S cookie. Not from a setting, not from
+     * a default: sending hashed personal data to Meta for someone who declined
+     * marketing is precisely what the banner promised would not happen.
+     *
+     * event_id = ref, and the browser fires Lead with the same ref as its
+     * eventID. That pairing is the whole contract — without it every booking
+     * counts twice and every cost-per-lead reads half of what it is.
+     */
+    const lead = await sendLeadEvent({
+      ref,
+      email: r.email,
+      phone: r.phone,
+      name: r.name,
+      valueEuros: quote.total,
+      consentCookie: req.cookies.get(CONSENT_COOKIE)?.value,
+      siteUrl: (process.env.SITE_URL?.replace(/\/+$/, "") || "https://www.kiddostudio.pt") + "/booking",
+      clientIp: req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null,
+      clientUserAgent: req.headers.get("user-agent"),
+    });
+    if (!lead.sent && lead.why === "failed") {
+      // Logged inside, but worth one line at the booking's own level so the
+      // ref is searchable alongside everything else about it.
+      console.error(`[BOOKING ${ref}] Meta was not told about this booking`);
     }
 
     return NextResponse.json({ ok: true, ref, total: quote.total, recorded });

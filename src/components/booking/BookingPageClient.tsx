@@ -16,6 +16,7 @@ import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { HandwrittenWord, kiddoColors } from "@/components/kiddo-assets";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import { pixelLead } from "@/lib/analytics/pixel";
 import { useAvailability, availabilityData, invalidateAvailability } from "@/hooks/useAvailability";
 import {
   ADDON_OPTIONS,
@@ -271,6 +272,16 @@ export default function BookingPageClient({
       };
 
       if (res.ok && data.ref) {
+        /*
+         * The browser half of the Lead. The server sends the same ref as
+         * event_id through the Conversions API, and Meta collapses the two
+         * into one — which is the only thing standing between the studio and
+         * a cost-per-lead that reads half of what it really is.
+         *
+         * It cannot throw and it cannot block: pixelLead returns immediately
+         * when fbq is absent or when marketing was declined.
+         */
+        pixelLead(data.ref, quote.total);
         setSubmit({
           status: "done",
           ref: data.ref,
