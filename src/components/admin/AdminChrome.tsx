@@ -21,6 +21,7 @@ const TABS = [
   { href: "/admin/equipment", label: "EQUIPMENT" },
   { href: "/admin/pricing", label: "PRICING" },
   { href: "/admin/contact", label: "CONTACT" },
+  { href: "/admin/integrations", label: "CONNECTIONS" },
 ];
 
 export default function AdminChrome({
